@@ -1,108 +1,66 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { i as require_react } from "../_libs/@hookform/resolvers+[...].mjs";
-import { b as require_jsx_runtime, v as Link } from "../_libs/@tanstack/react-router+[...].mjs";
-import { i as Volume2, r as VolumeX } from "../_libs/lucide-react.mjs";
+import { R as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { i as string, r as object } from "../_libs/zod.mjs";
-import { i as useMotionValue, n as useSpring, r as useTransform } from "../_libs/framer-motion+[...].mjs";
-import { t as motion } from "../_libs/motion.mjs";
 import { n as clsx } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/tilt-card-BlbI-YSI.js
+import { i as useMotionValue, n as useSpring, r as useTransform } from "../_libs/framer-motion+[...].mjs";
+import { t as motion } from "../_libs/motion.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/recruitment-DF6yoLIM.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function cn(...inputs) {
 	return twMerge(clsx(inputs));
 }
-/**
-* Efeitos sonoros táticos sintetizados via Web Audio API (Zero assets externos).
-*/
-var audioCtx = null;
-var isMuted = false;
-if (typeof window !== "undefined") try {
-	isMuted = localStorage.getItem("latam-sfx-muted") === "true";
-} catch {
-	isMuted = false;
-}
-function getAudioContext() {
-	if (typeof window === "undefined") return null;
-	if (!audioCtx) {
-		const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-		if (AudioContextClass) audioCtx = new AudioContextClass();
+function TiltCard({ children, className, maxTilt = 12, glareOpacity = .2, ...props }) {
+	const cardRef = (0, import_react.useRef)(null);
+	const x = useMotionValue(.5);
+	const y = useMotionValue(.5);
+	const springConfig = {
+		damping: 25,
+		stiffness: 220
+	};
+	const smoothX = useSpring(x, springConfig);
+	const smoothY = useSpring(y, springConfig);
+	const rotateX = useTransform(smoothY, [0, 1], [maxTilt, -maxTilt]);
+	const rotateY = useTransform(smoothX, [0, 1], [-maxTilt, maxTilt]);
+	const glareX = useTransform(smoothX, [0, 1], ["0%", "100%"]);
+	const glareY = useTransform(smoothY, [0, 1], ["0%", "100%"]);
+	function handleMouseMove(e) {
+		if (!cardRef.current) return;
+		const rect = cardRef.current.getBoundingClientRect();
+		const clientX = (e.clientX - rect.left) / rect.width;
+		const clientY = (e.clientY - rect.top) / rect.height;
+		x.set(Math.min(Math.max(clientX, 0), 1));
+		y.set(Math.min(Math.max(clientY, 0), 1));
 	}
-	if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
-	return audioCtx;
-}
-function isSoundMuted() {
-	return isMuted;
-}
-function toggleSound() {
-	isMuted = !isMuted;
-	if (typeof window !== "undefined") try {
-		localStorage.setItem("latam-sfx-muted", String(isMuted));
-	} catch {}
-	if (!isMuted) playSelectSound();
-	return isMuted;
-}
-function playSelectSound() {
-	if (isMuted) return;
-	try {
-		const ctx = getAudioContext();
-		if (!ctx) return;
-		const osc = ctx.createOscillator();
-		const gain = ctx.createGain();
-		osc.type = "sine";
-		osc.frequency.setValueAtTime(580, ctx.currentTime);
-		osc.frequency.exponentialRampToValueAtTime(840, ctx.currentTime + .06);
-		gain.gain.setValueAtTime(.04, ctx.currentTime);
-		gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .06);
-		osc.connect(gain);
-		gain.connect(ctx.destination);
-		osc.start();
-		osc.stop(ctx.currentTime + .06);
-	} catch {}
-}
-function playStepSound() {
-	if (isMuted) return;
-	try {
-		const ctx = getAudioContext();
-		if (!ctx) return;
-		const osc = ctx.createOscillator();
-		const gain = ctx.createGain();
-		osc.type = "triangle";
-		osc.frequency.setValueAtTime(420, ctx.currentTime);
-		osc.frequency.exponentialRampToValueAtTime(960, ctx.currentTime + .12);
-		gain.gain.setValueAtTime(.06, ctx.currentTime);
-		gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .12);
-		osc.connect(gain);
-		gain.connect(ctx.destination);
-		osc.start();
-		osc.stop(ctx.currentTime + .12);
-	} catch {}
-}
-function playSuccessSound() {
-	if (isMuted) return;
-	try {
-		const ctx = getAudioContext();
-		if (!ctx) return;
-		const now = ctx.currentTime;
-		[
-			523.25,
-			659.25,
-			783.99,
-			1046.5
-		].forEach((freq, idx) => {
-			const osc = ctx.createOscillator();
-			const gain = ctx.createGain();
-			osc.type = "sine";
-			osc.frequency.setValueAtTime(freq, now + idx * .08);
-			gain.gain.setValueAtTime(.05, now + idx * .08);
-			gain.gain.exponentialRampToValueAtTime(.001, now + idx * .08 + .18);
-			osc.connect(gain);
-			gain.connect(ctx.destination);
-			osc.start(now + idx * .08);
-			osc.stop(now + idx * .08 + .2);
-		});
-	} catch {}
+	function handleMouseLeave() {
+		x.set(.5);
+		y.set(.5);
+	}
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.div, {
+		ref: cardRef,
+		onMouseMove: handleMouseMove,
+		onMouseLeave: handleMouseLeave,
+		style: {
+			transformStyle: "preserve-3d",
+			rotateX,
+			rotateY
+		},
+		className: cn("relative transform-gpu transition-shadow duration-300", className),
+		...props,
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
+			"aria-hidden": "true",
+			className: "pointer-events-none absolute inset-0 z-30 rounded-[inherit] transition-opacity duration-300 opacity-0 group-hover:opacity-100",
+			style: {
+				background: `radial-gradient(circle 280px at 50% 50%, rgba(255,255,255,${glareOpacity}), transparent 80%)`,
+				left: useTransform(glareX, (val) => `calc(${val} - 140px)`),
+				top: useTransform(glareY, (val) => `calc(${val} - 140px)`),
+				width: "280px",
+				height: "280px"
+			}
+		}), children]
+	});
 }
 var GUILD_NAME = "LATAM";
 var GUILD_TAGLINE = "Foco total na partida sem ter medo de perder";
@@ -431,6 +389,22 @@ async function submitRecruitment(values) {
 		});
 		const result = await response.json().catch(() => null);
 		if (!response.ok || !result?.success) throw new Error(result?.error || "O servidor recusou os dados. Confira o formulário.");
+		if (typeof window !== "undefined") try {
+			const existing = JSON.parse(localStorage.getItem("latam-admin-candidates") || "[]");
+			const newRecord = {
+				...payload,
+				id: `cand-${Date.now()}`,
+				submittedAt: (/* @__PURE__ */ new Date()).toLocaleDateString("pt-BR", {
+					day: "2-digit",
+					month: "2-digit",
+					year: "numeric",
+					hour: "2-digit",
+					minute: "2-digit"
+				}),
+				status: "pendente"
+			};
+			localStorage.setItem("latam-admin-candidates", JSON.stringify([newRecord, ...existing]));
+		} catch {}
 	} catch (error) {
 		if (error instanceof DOMException && error.name === "AbortError") throw new Error("Tempo esgotado. Confira a conexão e tente de novo.");
 		throw new Error("Erro ao enviar. Tente novamente em instantes.");
@@ -438,145 +412,5 @@ async function submitRecruitment(values) {
 		window.clearTimeout(timer);
 	}
 }
-function SiteFooter() {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("footer", {
-		className: "px-5 pb-16 pt-8 text-center",
-		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "rule-brand mx-auto mb-6 max-w-xs" }),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-				className: "font-display text-2xl tracking-[0.16em] text-silver",
-				children: [
-					GUILD_NAME,
-					" ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: "tracking-normal text-accent",
-						children: "友"
-					})
-				]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mt-2 text-sm text-muted-foreground",
-				children: GUILD_TAGLINE
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-				className: "mt-4 text-xs text-subtle",
-				children: [GUILD_NAME, " · Recrutamento Free Fire"]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mt-3 text-xs tracking-[0.12em] text-muted-foreground",
-				children: "by Souza"
-			})
-		]
-	});
-}
-function SiteHeader() {
-	const [muted, setMuted] = (0, import_react.useState)(false);
-	(0, import_react.useEffect)(() => {
-		setMuted(isSoundMuted());
-	}, []);
-	function handleToggleAudio() {
-		const next = toggleSound();
-		setMuted(next);
-	}
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("header", {
-		className: "site-header backdrop-blur-md bg-background/85",
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "mx-auto flex h-14 max-w-5xl items-center justify-between px-5",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
-				to: "/",
-				className: "flex items-center gap-2.5 no-underline group",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-					src: "/latam-mark.webp",
-					alt: "Brasão LATAM 友",
-					width: 32,
-					height: 32,
-					className: "size-8 transition-transform duration-200 group-hover:scale-105",
-					decoding: "async"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-					className: "font-display text-xl tracking-[0.14em] text-silver group-hover:text-white transition-colors",
-					children: [
-						GUILD_NAME,
-						" ",
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "tracking-normal text-accent",
-							children: "友"
-						})
-					]
-				})]
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex items-center gap-3",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("nav", {
-					className: "hidden sm:flex items-center gap-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-						to: "/",
-						className: "hover:text-silver transition-colors [&.active]:text-accent",
-						children: "Início"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-						to: "/candidatura",
-						className: "hover:text-silver transition-colors [&.active]:text-accent",
-						children: "Candidatar-se"
-					})]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					type: "button",
-					onClick: handleToggleAudio,
-					"aria-label": muted ? "Ativar som de efeitos" : "Mutar som de efeitos",
-					title: muted ? "Som desativado (Clique para ativar)" : "Som ativado (Clique para mutar)",
-					className: "flex size-8 items-center justify-center rounded-lg border border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-silver transition-colors",
-					children: muted ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VolumeX, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Volume2, { className: "size-4 text-accent" })
-				})]
-			})]
-		})
-	});
-}
-function TiltCard({ children, className, maxTilt = 12, glareOpacity = .2, ...props }) {
-	const cardRef = (0, import_react.useRef)(null);
-	const x = useMotionValue(.5);
-	const y = useMotionValue(.5);
-	const springConfig = {
-		damping: 25,
-		stiffness: 220
-	};
-	const smoothX = useSpring(x, springConfig);
-	const smoothY = useSpring(y, springConfig);
-	const rotateX = useTransform(smoothY, [0, 1], [maxTilt, -maxTilt]);
-	const rotateY = useTransform(smoothX, [0, 1], [-maxTilt, maxTilt]);
-	const glareX = useTransform(smoothX, [0, 1], ["0%", "100%"]);
-	const glareY = useTransform(smoothY, [0, 1], ["0%", "100%"]);
-	function handleMouseMove(e) {
-		if (!cardRef.current) return;
-		const rect = cardRef.current.getBoundingClientRect();
-		const clientX = (e.clientX - rect.left) / rect.width;
-		const clientY = (e.clientY - rect.top) / rect.height;
-		x.set(Math.min(Math.max(clientX, 0), 1));
-		y.set(Math.min(Math.max(clientY, 0), 1));
-	}
-	function handleMouseLeave() {
-		x.set(.5);
-		y.set(.5);
-	}
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.div, {
-		ref: cardRef,
-		onMouseMove: handleMouseMove,
-		onMouseLeave: handleMouseLeave,
-		style: {
-			transformStyle: "preserve-3d",
-			rotateX,
-			rotateY
-		},
-		className: cn("relative transform-gpu transition-shadow duration-300", className),
-		...props,
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
-			"aria-hidden": "true",
-			className: "pointer-events-none absolute inset-0 z-30 rounded-[inherit] transition-opacity duration-300 opacity-0 group-hover:opacity-100",
-			style: {
-				background: `radial-gradient(circle 280px at 50% 50%, rgba(255,255,255,${glareOpacity}), transparent 80%)`,
-				left: useTransform(glareX, (val) => `calc(${val} - 140px)`),
-				top: useTransform(glareY, (val) => `calc(${val} - 140px)`),
-				width: "280px",
-				height: "280px"
-			}
-		}), children]
-	});
-}
 //#endregion
-export { playSuccessSound as C, submitRecruitment as E, playStepSound as S, saveDraft as T, defaultValues as _, GUILD_TAGLINE as a, loadDraft as b, PILLARS as c, SIM_NAO as d, SiteFooter as f, cn as g, clearDraft as h, GUILD_NAME as i, PROCESS as l, TiltCard as m, FORM_STEPS as n, HORAS_DISPONIBILIDADE as o, SiteHeader as p, FUNCOES as r, PATENTES_LATAM as s, FIELD_LABELS as t, REQUIREMENTS as u, displayValue as v, recruitmentSchema as w, playSelectSound as x, formatApplicationMessage as y };
+export { formatApplicationMessage as _, GUILD_TAGLINE as a, saveDraft as b, PILLARS as c, SIM_NAO as d, TiltCard as f, displayValue as g, defaultValues as h, GUILD_NAME as i, PROCESS as l, cn as m, FORM_STEPS as n, HORAS_DISPONIBILIDADE as o, clearDraft as p, FUNCOES as r, PATENTES_LATAM as s, FIELD_LABELS as t, REQUIREMENTS as u, loadDraft as v, submitRecruitment as x, recruitmentSchema as y };

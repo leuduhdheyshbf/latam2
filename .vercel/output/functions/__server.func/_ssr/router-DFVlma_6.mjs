@@ -1,11 +1,11 @@
 import { i as __toESM, n as __exportAll } from "../_runtime.mjs";
 import { i as require_react } from "../_libs/@hookform/resolvers+[...].mjs";
-import { _ as createRootRoute, b as require_jsx_runtime, d as HeadContent, g as createFileRoute, h as lazyRouteComponent, m as Outlet, p as createRouter, u as Scripts, y as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
-import { c as TriangleAlert } from "../_libs/lucide-react.mjs";
+import { R as require_jsx_runtime, _ as createRootRoute, d as HeadContent, g as createFileRoute, h as lazyRouteComponent, m as Outlet, p as createRouter, u as Scripts, y as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
+import { o as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { t as Toaster } from "../_libs/sonner.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-D7pNVw0h.js
-var router_D7pNVw0h_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-DFVlma_6.js
+var router_DFVlma_6_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var FALLBACK_MESSAGE = "Algo deu errado. Recarregue a página.";
@@ -299,9 +299,9 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-C33YI2Ue.css";
+var styles_default = "/assets/styles-DjM5AwRc.css";
 var APP_NAME = "LATAM 友";
-var Route$2 = createRootRoute({
+var Route$3 = createRootRoute({
 	head: () => ({
 		meta: [
 			{ charSet: "utf-8" },
@@ -368,23 +368,30 @@ var Route$2 = createRootRoute({
 		] })]
 	})
 });
-var $$splitComponentImporter$1 = () => import("./routes-DW2xCpGw.mjs");
-var Route$1 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
-var $$splitComponentImporter = () => import("./candidatura-BN6ud-HP.mjs");
+var $$splitComponentImporter$2 = () => import("./routes-DhUjYOyL.mjs");
+var Route$2 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter$2, "component") });
+var $$splitComponentImporter$1 = () => import("./admin-rkp3NbQk.mjs");
+var Route$1 = createFileRoute("/admin")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
+var $$splitComponentImporter = () => import("./candidatura-De23Zq1Y.mjs");
 var Route = createFileRoute("/candidatura")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
 var rootRouteChildren = {
-	IndexRoute: Route$1.update({
+	IndexRoute: Route$2.update({
 		id: "/",
 		path: "/",
-		getParentRoute: () => Route$2
+		getParentRoute: () => Route$3
+	}),
+	AdminRoute: Route$1.update({
+		id: "/admin",
+		path: "/admin",
+		getParentRoute: () => Route$3
 	}),
 	CandidaturaRoute: Route.update({
 		id: "/candidatura",
 		path: "/candidatura",
-		getParentRoute: () => Route$2
+		getParentRoute: () => Route$3
 	})
 };
-var routeTree = Route$2._addFileChildren(rootRouteChildren)._addFileTypes();
+var routeTree = Route$3._addFileChildren(rootRouteChildren)._addFileTypes();
 function getRouter() {
 	return createRouter({
 		routeTree,
@@ -392,4 +399,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_D7pNVw0h_exports as t };
+export { getRouter, router_DFVlma_6_exports as t };

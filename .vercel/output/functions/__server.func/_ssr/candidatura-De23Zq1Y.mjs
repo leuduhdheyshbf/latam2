@@ -1,13 +1,14 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { i as require_react, n as Controller, r as useForm, t as u } from "../_libs/@hookform/resolvers+[...].mjs";
-import { b as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
-import { A as Check, D as Clock, E as Copy, N as ArrowRight, O as CircleCheck, P as ArrowLeft, S as Flame, T as Crosshair, _ as MessageCircle, a as Users, b as HeartPulse, f as Shield, h as RotateCcw, j as Award, m as Send, n as Wind, p as ShieldCheck, s as Trophy, t as Zap, v as LoaderCircle, w as Crown, x as Gem, y as Layers } from "../_libs/lucide-react.mjs";
+import { R as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { o as AnimatePresence, t as useReducedMotion } from "../_libs/framer-motion+[...].mjs";
 import { t as motion } from "../_libs/motion.mjs";
-import { t as cva } from "../_libs/class-variance-authority+clsx.mjs";
-import { C as playSuccessSound, E as submitRecruitment, S as playStepSound, T as saveDraft, _ as defaultValues, b as loadDraft, d as SIM_NAO, f as SiteFooter, g as cn, h as clearDraft, i as GUILD_NAME, m as TiltCard, n as FORM_STEPS, o as HORAS_DISPONIBILIDADE, p as SiteHeader, r as FUNCOES, s as PATENTES_LATAM, t as FIELD_LABELS, v as displayValue, w as recruitmentSchema, x as playSelectSound, y as formatApplicationMessage } from "./tilt-card-BlbI-YSI.mjs";
+import { _ as formatApplicationMessage, b as saveDraft, d as SIM_NAO, f as TiltCard, g as displayValue, h as defaultValues, i as GUILD_NAME, m as cn, n as FORM_STEPS, o as HORAS_DISPONIBILIDADE, p as clearDraft, r as FUNCOES, s as PATENTES_LATAM, t as FIELD_LABELS, v as loadDraft, x as submitRecruitment, y as recruitmentSchema } from "./recruitment-DF6yoLIM.mjs";
+import { a as maskPlayerId, i as maskPhone, n as Input, t as Button } from "./masks-RRqYtDs_.mjs";
+import { A as Clock, C as Gem, D as Crown, F as Award, L as ArrowRight, M as CircleCheck, O as Crosshair, P as Check, R as ArrowLeft, S as HeartPulse, _ as MessageCircle, a as Trophy, b as LoaderCircle, d as Shield, f as ShieldCheck, h as RotateCcw, k as Copy, n as Wind, p as Send, r as Users, t as Zap, w as Flame, x as Layers } from "../_libs/lucide-react.mjs";
 import { n as toast } from "../_libs/sonner.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/candidatura-BN6ud-HP.js
+import { n as SiteHeader, t as SiteFooter } from "./site-header-DVoGqLN1.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/candidatura-De23Zq1Y.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function Label({ className, ...props }) {
@@ -62,39 +63,85 @@ function SectionCard({ id, eyebrow, title, icon: Icon, children }) {
 		})]
 	});
 }
-var buttonVariants = cva("inline-flex items-center justify-center gap-2 font-medium select-none transition-[transform,background-color,box-shadow,color,opacity] duration-[var(--motion-quick)] ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-40 active:not-disabled:scale-[0.96]", {
-	variants: {
-		variant: {
-			primary: "bg-accent text-accent-foreground shadow-accent hover:bg-accent-hover",
-			secondary: "bg-card text-foreground shadow-border hover:shadow-border-hover",
-			ghost: "bg-transparent text-muted-foreground hover:text-foreground"
-		},
-		size: {
-			default: "min-h-11 rounded-md px-5 text-sm",
-			lg: "min-h-12 rounded-lg px-6 text-base"
-		}
-	},
-	defaultVariants: {
-		variant: "primary",
-		size: "default"
-	}
-});
-function Button({ className, variant, size, type = "button", ...props }) {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-		type,
-		className: cn(buttonVariants({
-			variant,
-			size
-		}), className),
-		...props
-	});
+/**
+* Efeitos sonoros táticos sintetizados via Web Audio API (Zero assets externos).
+*/
+var audioCtx = null;
+var isMuted = false;
+if (typeof window !== "undefined") try {
+	isMuted = localStorage.getItem("latam-sfx-muted") === "true";
+} catch {
+	isMuted = false;
 }
-function Input({ className, ...props }) {
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-		suppressHydrationWarning: true,
-		className: cn("field-control", className),
-		...props
-	});
+function getAudioContext() {
+	if (typeof window === "undefined") return null;
+	if (!audioCtx) {
+		const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+		if (AudioContextClass) audioCtx = new AudioContextClass();
+	}
+	if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+	return audioCtx;
+}
+function playSelectSound() {
+	if (isMuted) return;
+	try {
+		const ctx = getAudioContext();
+		if (!ctx) return;
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		osc.type = "sine";
+		osc.frequency.setValueAtTime(580, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(840, ctx.currentTime + .06);
+		gain.gain.setValueAtTime(.04, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .06);
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start();
+		osc.stop(ctx.currentTime + .06);
+	} catch {}
+}
+function playStepSound() {
+	if (isMuted) return;
+	try {
+		const ctx = getAudioContext();
+		if (!ctx) return;
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		osc.type = "triangle";
+		osc.frequency.setValueAtTime(420, ctx.currentTime);
+		osc.frequency.exponentialRampToValueAtTime(960, ctx.currentTime + .12);
+		gain.gain.setValueAtTime(.06, ctx.currentTime);
+		gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .12);
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start();
+		osc.stop(ctx.currentTime + .12);
+	} catch {}
+}
+function playSuccessSound() {
+	if (isMuted) return;
+	try {
+		const ctx = getAudioContext();
+		if (!ctx) return;
+		const now = ctx.currentTime;
+		[
+			523.25,
+			659.25,
+			783.99,
+			1046.5
+		].forEach((freq, idx) => {
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+			osc.type = "sine";
+			osc.frequency.setValueAtTime(freq, now + idx * .08);
+			gain.gain.setValueAtTime(.05, now + idx * .08);
+			gain.gain.exponentialRampToValueAtTime(.001, now + idx * .08 + .18);
+			osc.connect(gain);
+			gain.connect(ctx.destination);
+			osc.start(now + idx * .08);
+			osc.stop(now + idx * .08 + .2);
+		});
+	} catch {}
 }
 var ICONS_BY_VALUE = {
 	rush: Zap,
@@ -188,20 +235,6 @@ function Textarea({ className, ...props }) {
 		className: cn("field-control field-textarea", className),
 		...props
 	});
-}
-/**
-* Utilitários de máscara e formatação para o formulário da LATAM 友
-*/
-function maskPhone(value) {
-	const digits = value.replace(/\D/g, "").slice(0, 11);
-	if (!digits) return "";
-	if (digits.length <= 2) return `(${digits}`;
-	if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-	if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-	return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
-}
-function maskPlayerId(value) {
-	return value.replace(/\D/g, "").slice(0, 12);
 }
 var ease = [
 	.22,

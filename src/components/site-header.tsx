@@ -1,21 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Volume2, VolumeX } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import { GUILD_MARK, GUILD_NAME } from "@/lib/recruitment";
-import { isSoundMuted, toggleSound } from "@/lib/sound";
 
 export function SiteHeader() {
-  const [muted, setMuted] = useState(false);
-
-  useEffect(() => {
-    setMuted(isSoundMuted());
-  }, []);
-
-  function handleToggleAudio() {
-    const next = toggleSound();
-    setMuted(next);
-  }
-
   return (
     <header className="site-header backdrop-blur-md bg-background/85">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
@@ -33,32 +20,15 @@ export function SiteHeader() {
           </span>
         </Link>
 
+        {/* Botão de Acesso ADM / Liderança */}
         <div className="flex items-center gap-3">
-          <nav className="hidden sm:flex items-center gap-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Link
-              to="/"
-              className="hover:text-silver transition-colors [&.active]:text-accent"
-            >
-              Início
-            </Link>
-            <Link
-              to="/candidatura"
-              className="hover:text-silver transition-colors [&.active]:text-accent"
-            >
-              Candidatar-se
-            </Link>
-          </nav>
-
-          {/* Toggle de Som */}
-          <button
-            type="button"
-            onClick={handleToggleAudio}
-            aria-label={muted ? "Ativar som de efeitos" : "Mutar som de efeitos"}
-            title={muted ? "Som desativado (Clique para ativar)" : "Som ativado (Clique para mutar)"}
-            className="flex size-8 items-center justify-center rounded-lg border border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-silver transition-colors"
+          <Link
+            to="/admin"
+            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider px-3.5 py-1.5 rounded-lg border border-accent/40 bg-accent/10 text-accent hover:bg-accent hover:text-neutral-950 transition-all duration-200 shadow-[0_0_14px_rgba(0,180,255,0.25)] active:scale-95 group"
           >
-            {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4 text-accent" />}
-          </button>
+            <ShieldCheck className="size-4 transition-transform group-hover:scale-110" />
+            <span>Sou ADM</span>
+          </Link>
         </div>
       </div>
     </header>

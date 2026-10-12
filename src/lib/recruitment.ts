@@ -292,6 +292,28 @@ export async function submitRecruitment(values: RecruitmentValues): Promise<void
     if (!response.ok || !result?.success) {
       throw new Error(result?.error || "O servidor recusou os dados. Confira o formulário.");
     }
+
+    // Salva cópia local para visualização instantânea no Painel do Administrador (Sou ADM)
+    if (typeof window !== "undefined") {
+      try {
+        const existing = JSON.parse(localStorage.getItem("latam-admin-candidates") || "[]");
+        const newRecord = {
+          ...payload,
+          id: `cand-${Date.now()}`,
+          submittedAt: new Date().toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          status: "pendente",
+        };
+        localStorage.setItem("latam-admin-candidates", JSON.stringify([newRecord, ...existing]));
+      } catch {
+        /* ignore */
+      }
+    }
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       throw new Error("Tempo esgotado. Confira a conexão e tente de novo.");
