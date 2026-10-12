@@ -7,7 +7,7 @@ import { t as motion } from "../_libs/motion.mjs";
 import { t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { C as playSuccessSound, E as submitRecruitment, S as playStepSound, T as saveDraft, _ as defaultValues, b as loadDraft, d as SIM_NAO, f as SiteFooter, g as cn, h as clearDraft, i as GUILD_NAME, m as TiltCard, n as FORM_STEPS, o as HORAS_DISPONIBILIDADE, p as SiteHeader, r as FUNCOES, s as PATENTES_LATAM, t as FIELD_LABELS, v as displayValue, w as recruitmentSchema, x as playSelectSound, y as formatApplicationMessage } from "./tilt-card-BlbI-YSI.mjs";
 import { n as toast } from "../_libs/sonner.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/candidatura-BUTyytjU.js
+//#region node_modules/.nitro/vite/services/ssr/assets/candidatura-BN6ud-HP.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function Label({ className, ...props }) {
@@ -213,10 +213,11 @@ function RecruitmentForm({ onSubmitted }) {
 	const reduce = useReducedMotion();
 	const [step, setStep] = (0, import_react.useState)(0);
 	const [hydrated, setHydrated] = (0, import_react.useState)(false);
-	const { register, control, handleSubmit, setValue, trigger, watch, reset, formState: { errors, isSubmitting } } = useForm({
+	const { register, control, handleSubmit, setValue, trigger, clearErrors, watch, reset, formState: { errors, isSubmitting } } = useForm({
 		resolver: u(recruitmentSchema),
 		defaultValues,
 		mode: "onSubmit",
+		reValidateMode: "onChange",
 		shouldUnregister: false
 	});
 	const values = watch();
@@ -228,6 +229,9 @@ function RecruitmentForm({ onSubmitted }) {
 		if (!hydrated) return;
 		saveDraft(values);
 	}, [hydrated, values]);
+	(0, import_react.useEffect)(() => {
+		clearErrors();
+	}, [step, clearErrors]);
 	function onInvalid() {
 		requestAnimationFrame(() => {
 			document.querySelector("[data-error='true']")?.scrollIntoView({
@@ -242,12 +246,33 @@ function RecruitmentForm({ onSubmitted }) {
 			onInvalid();
 			return;
 		}
+		clearErrors();
 		playStepSound();
 		setStep((current) => Math.min(current + 1, FORM_STEPS.length - 1));
 	}
 	function goBack() {
+		clearErrors();
 		playStepSound();
 		setStep((current) => Math.max(current - 1, 0));
+	}
+	function jumpToStep(index) {
+		if (index < step) {
+			clearErrors();
+			playStepSound();
+			setStep(index);
+		}
+	}
+	async function handleFormSubmit(event) {
+		event.preventDefault();
+		if (step < FORM_STEPS.length - 1) {
+			await goNext();
+			return;
+		}
+		if (!await trigger()) {
+			onInvalid();
+			return;
+		}
+		await handleSubmit(onSubmitted, onInvalid)(event);
 	}
 	const progress = (step + 1) / FORM_STEPS.length;
 	const current = FORM_STEPS[step];
@@ -255,14 +280,7 @@ function RecruitmentForm({ onSubmitted }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
 		id: "formulario",
 		className: "mx-auto flex w-full max-w-xl flex-col gap-5 px-5 pb-20 pt-8",
-		onSubmit: (event) => {
-			if (step < FORM_STEPS.length - 1) {
-				event.preventDefault();
-				goNext();
-				return;
-			}
-			handleSubmit(onSubmitted, onInvalid)(event);
-		},
+		onSubmit: handleFormSubmit,
 		noValidate: true,
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
@@ -314,12 +332,7 @@ function RecruitmentForm({ onSubmitted }) {
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 									type: "button",
 									disabled: index > step,
-									onClick: () => {
-										if (index < step) {
-											playStepSound();
-											setStep(index);
-										}
-									},
+									onClick: () => jumpToStep(index),
 									className: cn("flex items-center justify-center gap-1.5 w-full rounded-md py-2 text-center text-[11px] font-semibold tracking-wide uppercase transition-all duration-150", index === step ? "bg-accent/15 text-accent shadow-[0_0_12px_rgba(0,180,255,0.2)]" : isDone ? "bg-white/5 text-silver hover:bg-white/10" : "text-subtle"),
 									children: [isDone ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
 										className: "size-3 text-accent",
@@ -558,7 +571,10 @@ function RecruitmentForm({ onSubmitted }) {
 									render: ({ field }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(OptionCards, {
 										name: field.name,
 										value: field.value,
-										onChange: field.onChange,
+										onChange: (val) => {
+											field.onChange(val);
+											clearErrors("tempoDisponivel");
+										},
 										options: HORAS_DISPONIBILIDADE,
 										columns: "stack"
 									})
@@ -571,7 +587,9 @@ function RecruitmentForm({ onSubmitted }) {
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 									id: "horarioDisponivel",
 									placeholder: "Ex: 19h às 23h (Treinos e Ranqueadas)",
-									...register("horarioDisponivel")
+									...register("horarioDisponivel", { onChange: () => {
+										clearErrors("horarioDisponivel");
+									} })
 								})
 							})]
 						}) : null

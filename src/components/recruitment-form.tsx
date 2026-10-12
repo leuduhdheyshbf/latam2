@@ -42,6 +42,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     handleSubmit,
     setValue,
     trigger,
+    clearErrors,
     watch,
     reset,
     formState: { errors, isSubmitting },
@@ -49,6 +50,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     resolver: zodResolver(recruitmentSchema),
     defaultValues,
     mode: "onSubmit",
+    reValidateMode: "onChange",
     shouldUnregister: false,
   });
 
@@ -64,6 +66,11 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     saveDraft(values);
   }, [hydrated, values]);
 
+  // Limpa qualquer erro residual ao trocar de etapa
+  useEffect(() => {
+    clearErrors();
+  }, [step, clearErrors]);
+
   function onInvalid() {
     requestAnimationFrame(() => {
       const first = document.querySelector("[data-error='true']");
@@ -78,13 +85,37 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
       onInvalid();
       return;
     }
+    clearErrors();
     playStepSound();
     setStep((current) => Math.min(current + 1, FORM_STEPS.length - 1));
   }
 
   function goBack() {
+    clearErrors();
     playStepSound();
     setStep((current) => Math.max(current - 1, 0));
+  }
+
+  function jumpToStep(index: number) {
+    if (index < step) {
+      clearErrors();
+      playStepSound();
+      setStep(index);
+    }
+  }
+
+  async function handleFormSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (step < FORM_STEPS.length - 1) {
+      await goNext();
+      return;
+    }
+    const ok = await trigger();
+    if (!ok) {
+      onInvalid();
+      return;
+    }
+    await handleSubmit(onSubmitted, onInvalid)(event);
   }
 
   const progress = (step + 1) / FORM_STEPS.length;
@@ -95,14 +126,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     <form
       id="formulario"
       className="mx-auto flex w-full max-w-xl flex-col gap-5 px-5 pb-20 pt-8"
-      onSubmit={(event) => {
-        if (step < FORM_STEPS.length - 1) {
-          event.preventDefault();
-          void goNext();
-          return;
-        }
-        void handleSubmit(onSubmitted, onInvalid)(event);
-      }}
+      onSubmit={handleFormSubmit}
       noValidate
     >
       <div>
@@ -135,12 +159,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 <button
                   type="button"
                   disabled={index > step}
-                  onClick={() => {
-                    if (index < step) {
-                      playStepSound();
-                      setStep(index);
-                    }
-                  }}
+                  onClick={() => jumpToStep(index)}
                   className={cn(
                     "flex items-center justify-center gap-1.5 w-full rounded-md py-2 text-center text-[11px] font-semibold tracking-wide uppercase transition-all duration-150",
                     isCurrent
@@ -363,7 +382,10 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     <OptionCards
                       name={field.name}
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(val) => {
+                        field.onChange(val);
+                        clearErrors("tempoDisponivel");
+                      }}
                       options={HORAS_DISPONIBILIDADE}
                       columns="stack"
                     />
@@ -379,7 +401,11 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 <Input
                   id="horarioDisponivel"
                   placeholder="Ex: 19h às 23h (Treinos e Ranqueadas)"
-                  {...register("horarioDisponivel")}
+                  {...register("horarioDisponivel", {
+                    onChange: () => {
+                      clearErrors("horarioDisponivel");
+                    },
+                  })}
                 />
               </Field>
             </SectionCard>

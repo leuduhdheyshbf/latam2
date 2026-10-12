@@ -4,8 +4,8 @@ import { _ as createRootRoute, b as require_jsx_runtime, d as HeadContent, g as 
 import { c as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
 import { t as Toaster } from "../_libs/sonner.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-2_f-RgoO.js
-var router_2_f_RgoO_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-D7pNVw0h.js
+var router_D7pNVw0h_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var FALLBACK_MESSAGE = "Algo deu errado. Recarregue a página.";
@@ -370,7 +370,7 @@ var Route$2 = createRootRoute({
 });
 var $$splitComponentImporter$1 = () => import("./routes-DW2xCpGw.mjs");
 var Route$1 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
-var $$splitComponentImporter = () => import("./candidatura-BUTyytjU.mjs");
+var $$splitComponentImporter = () => import("./candidatura-BN6ud-HP.mjs");
 var Route = createFileRoute("/candidatura")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
 var rootRouteChildren = {
 	IndexRoute: Route$1.update({
@@ -392,4 +392,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_2_f_RgoO_exports as t };
+export { getRouter, router_D7pNVw0h_exports as t };
