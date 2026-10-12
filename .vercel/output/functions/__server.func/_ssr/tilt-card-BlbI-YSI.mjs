@@ -3,9 +3,16 @@ import { i as require_react } from "../_libs/@hookform/resolvers+[...].mjs";
 import { b as require_jsx_runtime, v as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { i as Volume2, r as VolumeX } from "../_libs/lucide-react.mjs";
 import { i as string, r as object } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/site-header-DTr75rTI.js
+import { i as useMotionValue, n as useSpring, r as useTransform } from "../_libs/framer-motion+[...].mjs";
+import { t as motion } from "../_libs/motion.mjs";
+import { n as clsx } from "../_libs/class-variance-authority+clsx.mjs";
+import { t as twMerge } from "../_libs/tailwind-merge.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/tilt-card-BlbI-YSI.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
+function cn(...inputs) {
+	return twMerge(clsx(inputs));
+}
 /**
 * Efeitos sonoros táticos sintetizados via Web Audio API (Zero assets externos).
 */
@@ -521,5 +528,55 @@ function SiteHeader() {
 		})
 	});
 }
+function TiltCard({ children, className, maxTilt = 12, glareOpacity = .2, ...props }) {
+	const cardRef = (0, import_react.useRef)(null);
+	const x = useMotionValue(.5);
+	const y = useMotionValue(.5);
+	const springConfig = {
+		damping: 25,
+		stiffness: 220
+	};
+	const smoothX = useSpring(x, springConfig);
+	const smoothY = useSpring(y, springConfig);
+	const rotateX = useTransform(smoothY, [0, 1], [maxTilt, -maxTilt]);
+	const rotateY = useTransform(smoothX, [0, 1], [-maxTilt, maxTilt]);
+	const glareX = useTransform(smoothX, [0, 1], ["0%", "100%"]);
+	const glareY = useTransform(smoothY, [0, 1], ["0%", "100%"]);
+	function handleMouseMove(e) {
+		if (!cardRef.current) return;
+		const rect = cardRef.current.getBoundingClientRect();
+		const clientX = (e.clientX - rect.left) / rect.width;
+		const clientY = (e.clientY - rect.top) / rect.height;
+		x.set(Math.min(Math.max(clientX, 0), 1));
+		y.set(Math.min(Math.max(clientY, 0), 1));
+	}
+	function handleMouseLeave() {
+		x.set(.5);
+		y.set(.5);
+	}
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.div, {
+		ref: cardRef,
+		onMouseMove: handleMouseMove,
+		onMouseLeave: handleMouseLeave,
+		style: {
+			transformStyle: "preserve-3d",
+			rotateX,
+			rotateY
+		},
+		className: cn("relative transform-gpu transition-shadow duration-300", className),
+		...props,
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
+			"aria-hidden": "true",
+			className: "pointer-events-none absolute inset-0 z-30 rounded-[inherit] transition-opacity duration-300 opacity-0 group-hover:opacity-100",
+			style: {
+				background: `radial-gradient(circle 280px at 50% 50%, rgba(255,255,255,${glareOpacity}), transparent 80%)`,
+				left: useTransform(glareX, (val) => `calc(${val} - 140px)`),
+				top: useTransform(glareY, (val) => `calc(${val} - 140px)`),
+				width: "280px",
+				height: "280px"
+			}
+		}), children]
+	});
+}
 //#endregion
-export { saveDraft as C, recruitmentSchema as S, formatApplicationMessage as _, GUILD_TAGLINE as a, playStepSound as b, PILLARS as c, SIM_NAO as d, SiteFooter as f, displayValue as g, defaultValues as h, GUILD_NAME as i, PROCESS as l, clearDraft as m, FORM_STEPS as n, HORAS_DISPONIBILIDADE as o, SiteHeader as p, FUNCOES as r, PATENTES_LATAM as s, FIELD_LABELS as t, REQUIREMENTS as u, loadDraft as v, submitRecruitment as w, playSuccessSound as x, playSelectSound as y };
+export { playSuccessSound as C, submitRecruitment as E, playStepSound as S, saveDraft as T, defaultValues as _, GUILD_TAGLINE as a, loadDraft as b, PILLARS as c, SIM_NAO as d, SiteFooter as f, cn as g, clearDraft as h, GUILD_NAME as i, PROCESS as l, TiltCard as m, FORM_STEPS as n, HORAS_DISPONIBILIDADE as o, SiteHeader as p, FUNCOES as r, PATENTES_LATAM as s, FIELD_LABELS as t, REQUIREMENTS as u, displayValue as v, recruitmentSchema as w, playSelectSound as x, formatApplicationMessage as y };

@@ -1,9 +1,9 @@
 import { b as require_jsx_runtime, v as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { A as Check, C as FilePen, F as ArrowDown, M as ArrowUp, N as ArrowRight, a as Users, d as Swords, f as Shield, g as MessageSquare, k as CircleAlert, l as TrendingUp, o as UserCheck, p as ShieldCheck, t as Zap, u as Target } from "../_libs/lucide-react.mjs";
-import { a as GUILD_TAGLINE, c as PILLARS, f as SiteFooter, i as GUILD_NAME, l as PROCESS, p as SiteHeader, u as REQUIREMENTS } from "./site-header-DTr75rTI.mjs";
 import { t as useReducedMotion } from "../_libs/framer-motion+[...].mjs";
 import { t as motion } from "../_libs/motion.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DFiZkz-T.js
+import { a as GUILD_TAGLINE, c as PILLARS, f as SiteFooter, i as GUILD_NAME, l as PROCESS, m as TiltCard, p as SiteHeader, u as REQUIREMENTS } from "./tilt-card-BlbI-YSI.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DW2xCpGw.js
 var import_jsx_runtime = require_jsx_runtime();
 var ease = [
 	.22,
@@ -28,17 +28,31 @@ function Hero() {
 		filter: "blur(0px)"
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-		className: "relative flex flex-col items-center px-5 pb-6 pt-10 text-center sm:pt-14",
+		className: "relative flex flex-col items-center px-5 pb-10 pt-10 text-center sm:pt-14 overflow-hidden",
 		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "pointer-events-none absolute -bottom-10 left-1/2 -translate-x-1/2 w-[140%] max-w-5xl h-64 opacity-35 [perspective:600px] overflow-hidden -z-10",
+				"aria-hidden": "true",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "w-full h-full [transform:rotateX(70deg)] origin-bottom",
+					style: {
+						backgroundImage: `
+              linear-gradient(to right, rgba(0, 180, 255, 0.3) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(0, 180, 255, 0.3) 1px, transparent 1px)
+            `,
+						backgroundSize: "44px 44px",
+						maskImage: "radial-gradient(ellipse 65% 55% at 50% 100%, black 25%, transparent 80%)"
+					}
+				})
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "hero-glow",
 				"aria-hidden": "true"
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.div, {
-				className: "relative",
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
 				initial: reduce ? false : {
 					opacity: 0,
-					scale: .95
+					scale: .94
 				},
 				animate: {
 					opacity: 1,
@@ -48,18 +62,27 @@ function Hero() {
 					duration: .7,
 					ease
 				},
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-accent/20 blur-3xl rounded-full scale-75 pointer-events-none" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-					src: "/latam-logo.webp",
-					alt: `Brasão da guilda ${GUILD_NAME} 友`,
-					className: "hero-logo relative drop-shadow-[0_12px_24px_rgba(0,180,255,0.2)]",
-					width: 636,
-					height: 640,
-					fetchPriority: "high",
-					decoding: "async"
-				})]
+				className: "relative z-10",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TiltCard, {
+					maxTilt: 18,
+					glareOpacity: .3,
+					className: "cursor-grab active:cursor-grabbing group",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "relative",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-accent/25 blur-3xl rounded-full scale-90 pointer-events-none" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+							src: "/latam-logo.webp",
+							alt: `Brasão da guilda ${GUILD_NAME} 友`,
+							className: "hero-logo relative drop-shadow-[0_20px_45px_rgba(0,180,255,0.35)] transition-transform duration-300 group-hover:scale-105",
+							width: 636,
+							height: 640,
+							fetchPriority: "high",
+							decoding: "async"
+						})]
+					})
+				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.p, {
-				className: "live-badge mt-6 cursor-default",
+				className: "live-badge mt-6 cursor-default border border-accent/30 shadow-[0_0_16px_rgba(0,180,255,0.25)]",
 				initial: hidden,
 				animate: visible,
 				transition: {
@@ -70,7 +93,7 @@ function Hero() {
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "live-dot" }), "Recrutamento Oficial Aberto"]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.h1, {
-				className: "font-display mt-5 max-w-2xl text-5xl leading-[0.92] tracking-wide text-silver sm:text-7xl",
+				className: "font-display mt-5 max-w-2xl text-6xl leading-[0.92] tracking-wide text-silver sm:text-8xl drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]",
 				initial: hidden,
 				animate: visible,
 				transition: {
@@ -82,7 +105,7 @@ function Hero() {
 					GUILD_NAME,
 					" ",
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: "text-accent",
+						className: "text-accent drop-shadow-[0_0_20px_rgba(0,180,255,0.6)]",
 						children: "友"
 					})
 				]
@@ -110,7 +133,7 @@ function Hero() {
 				children: [GUILD_TAGLINE, ". Preencha com informações verdadeiras — nossa liderança analisa cada perfil com critério e chama no WhatsApp."]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.div, {
-				className: "mt-8 flex w-full max-w-md flex-col items-center gap-3 sm:flex-row sm:justify-center",
+				className: "mt-8 flex w-full max-w-md flex-col items-center gap-3 sm:flex-row sm:justify-center z-10",
 				initial: hidden,
 				animate: visible,
 				transition: {
@@ -120,10 +143,10 @@ function Hero() {
 				},
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link, {
 					to: "/candidatura",
-					className: "cta-jump w-full sm:w-auto shadow-[0_0_24px_rgba(0,180,255,0.35)]",
+					className: "cta-jump w-full sm:w-auto",
 					children: ["Candidatar-se Agora", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowRight, {
 						className: "size-4",
-						strokeWidth: 2.25
+						strokeWidth: 2.5
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
 					href: "#processo",
@@ -132,7 +155,7 @@ function Hero() {
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.div, {
-				className: "mt-10 flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground",
+				className: "mt-10 flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground z-10",
 				initial: hidden,
 				animate: visible,
 				transition: {
@@ -142,15 +165,15 @@ function Hero() {
 				},
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						className: "flex items-center gap-1.5 rounded-full border border-white/6 bg-white/2 px-3 py-1",
+						className: "flex items-center gap-1.5 rounded-full border border-white/8 bg-white/3 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] hover:border-accent/40 transition-colors",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Swords, { className: "size-3.5 text-accent" }), "Treinos & Ranqueadas"]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						className: "flex items-center gap-1.5 rounded-full border border-white/6 bg-white/2 px-3 py-1",
+						className: "flex items-center gap-1.5 rounded-full border border-white/8 bg-white/3 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] hover:border-accent/40 transition-colors",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldCheck, { className: "size-3.5 text-accent" }), "Linhas Competitivas"]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						className: "flex items-center gap-1.5 rounded-full border border-white/6 bg-white/2 px-3 py-1",
+						className: "flex items-center gap-1.5 rounded-full border border-white/8 bg-white/3 px-3.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] hover:border-accent/40 transition-colors",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Zap, { className: "size-3.5 text-accent" }), "Triagem Rápida"]
 					})
 				]
@@ -167,23 +190,23 @@ var ICONS$1 = {
 function Pillars() {
 	const reduce = useReducedMotion();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-		className: "mx-auto mt-20 max-w-3xl px-5",
+		className: "mx-auto mt-24 max-w-3xl px-5",
 		"aria-labelledby": "pilares-title",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "flex items-center gap-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "size-1.5 rounded-full bg-accent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "size-2 rounded-full bg-accent shadow-[0_0_8px_rgba(0,180,255,0.8)]" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "text-xs font-semibold tracking-[0.18em] text-accent uppercase",
 					children: "A guilda"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 				id: "pilares-title",
-				className: "font-display mt-2 text-4xl tracking-wide text-silver",
+				className: "font-display mt-2 text-4xl tracking-wide text-silver sm:text-5xl",
 				children: "O que a LATAM cobra"
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
-				className: "mt-6 grid gap-3 sm:grid-cols-2",
+				className: "mt-8 grid gap-4 sm:grid-cols-2",
 				initial: reduce ? false : "hidden",
 				whileInView: "visible",
 				viewport: {
@@ -196,12 +219,11 @@ function Pillars() {
 				},
 				children: PILLARS.map((pillar) => {
 					const Icon = ICONS$1[pillar.title] || Shield;
-					return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.article, {
-						className: "pillar-card group relative overflow-hidden p-4 border border-white/6 hover:border-accent/40 bg-card/80 hover:bg-card-2 transition-all duration-200",
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.div, {
 						variants: {
 							hidden: {
 								opacity: 0,
-								y: 12,
+								y: 14,
 								filter: "blur(4px)"
 							},
 							visible: {
@@ -211,18 +233,23 @@ function Pillars() {
 								transition: { duration: .4 }
 							}
 						},
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex items-start gap-3.5",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent group-hover:bg-accent group-hover:text-neutral-950 transition-colors duration-200",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-5" })
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
-								className: "font-display text-2xl tracking-wide text-silver group-hover:text-white transition-colors",
-								children: pillar.title
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-sm leading-normal text-muted-foreground group-hover:text-silver/90",
-								children: pillar.body
-							})] })]
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TiltCard, {
+							maxTilt: 10,
+							glareOpacity: .15,
+							className: "pillar-card group relative overflow-hidden p-5 border border-white/8 hover:border-accent/50 bg-gradient-to-br from-[#121824] via-[#0d121b] to-[#080c12] transition-all duration-200 rounded-xl",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex items-start gap-4",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent group-hover:bg-accent group-hover:text-neutral-950 transition-all duration-200 shadow-[0_0_14px_rgba(0,180,255,0.2)]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-5.5" })
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+									className: "font-display text-2xl tracking-wide text-silver group-hover:text-white transition-colors",
+									children: pillar.title
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-sm leading-normal text-muted-foreground group-hover:text-silver/90",
+									children: pillar.body
+								})] })]
+							})
 						})
 					}, pillar.title);
 				})
@@ -239,23 +266,23 @@ function Process() {
 	const reduce = useReducedMotion();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		id: "processo",
-		className: "mx-auto mt-20 max-w-3xl scroll-mt-20 px-5",
+		className: "mx-auto mt-24 max-w-3xl scroll-mt-20 px-5",
 		"aria-labelledby": "processo-title",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "flex items-center gap-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "size-1.5 rounded-full bg-accent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "size-2 rounded-full bg-accent shadow-[0_0_8px_rgba(0,180,255,0.8)]" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "text-xs font-semibold tracking-[0.18em] text-accent uppercase",
 					children: "Processo"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 				id: "processo-title",
-				className: "font-display mt-2 text-4xl tracking-wide text-silver",
+				className: "font-display mt-2 text-4xl tracking-wide text-silver sm:text-5xl",
 				children: "Três passos até o time"
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.ol, {
-				className: "mt-6 grid gap-3 sm:grid-cols-3 relative",
+				className: "mt-8 grid gap-4 sm:grid-cols-3 relative",
 				initial: reduce ? false : "hidden",
 				whileInView: "visible",
 				viewport: {
@@ -268,12 +295,11 @@ function Process() {
 				},
 				children: PROCESS.map((item) => {
 					const Icon = ICONS[item.step] || FilePen;
-					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.li, {
-						className: "process-card group relative p-4 border border-white/6 hover:border-accent/40 bg-card/80 hover:bg-card-2 transition-all duration-200",
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(motion.li, {
 						variants: {
 							hidden: {
 								opacity: 0,
-								y: 12,
+								y: 14,
 								filter: "blur(4px)"
 							},
 							visible: {
@@ -283,26 +309,31 @@ function Process() {
 								transition: { duration: .4 }
 							}
 						},
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex items-center justify-between",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "font-display text-3xl tracking-wide text-accent",
-									children: item.step
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "flex size-8 items-center justify-center rounded-md bg-white/4 text-muted-foreground group-hover:text-accent group-hover:bg-accent/10 transition-colors",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-4" })
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
-								className: "mt-3 text-sm font-semibold text-foreground group-hover:text-white transition-colors",
-								children: item.title
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-xs leading-normal text-muted-foreground group-hover:text-silver/90",
-								children: item.body
-							})
-						]
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TiltCard, {
+							maxTilt: 12,
+							glareOpacity: .18,
+							className: "process-card group relative p-5 border border-white/8 hover:border-accent/50 bg-gradient-to-b from-[#121824] via-[#0d121b] to-[#080c12] transition-all duration-200 rounded-xl",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-center justify-between",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "font-display text-4xl tracking-wide text-accent drop-shadow-[0_0_12px_rgba(0,180,255,0.4)]",
+										children: item.step
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "flex size-9 items-center justify-center rounded-lg bg-white/4 text-muted-foreground group-hover:text-neutral-950 group-hover:bg-accent transition-all duration-200",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-4.5" })
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+									className: "mt-4 text-base font-semibold text-foreground group-hover:text-white transition-colors",
+									children: item.title
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1.5 text-xs leading-normal text-muted-foreground group-hover:text-silver/90",
+									children: item.body
+								})
+							]
+						})
 					}, item.step);
 				})
 			})

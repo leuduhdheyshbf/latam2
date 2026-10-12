@@ -2,18 +2,14 @@ import { i as __toESM } from "../_runtime.mjs";
 import { i as require_react, n as Controller, r as useForm, t as u } from "../_libs/@hookform/resolvers+[...].mjs";
 import { b as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
 import { A as Check, D as Clock, E as Copy, N as ArrowRight, O as CircleCheck, P as ArrowLeft, S as Flame, T as Crosshair, _ as MessageCircle, a as Users, b as HeartPulse, f as Shield, h as RotateCcw, j as Award, m as Send, n as Wind, p as ShieldCheck, s as Trophy, t as Zap, v as LoaderCircle, w as Crown, x as Gem, y as Layers } from "../_libs/lucide-react.mjs";
-import { C as saveDraft, S as recruitmentSchema, _ as formatApplicationMessage, b as playStepSound, d as SIM_NAO, f as SiteFooter, g as displayValue, h as defaultValues, i as GUILD_NAME, m as clearDraft, n as FORM_STEPS, o as HORAS_DISPONIBILIDADE, p as SiteHeader, r as FUNCOES, s as PATENTES_LATAM, t as FIELD_LABELS, v as loadDraft, w as submitRecruitment, x as playSuccessSound, y as playSelectSound } from "./site-header-DTr75rTI.mjs";
-import { n as toast } from "../_libs/sonner.mjs";
-import { r as AnimatePresence, t as useReducedMotion } from "../_libs/framer-motion+[...].mjs";
+import { o as AnimatePresence, t as useReducedMotion } from "../_libs/framer-motion+[...].mjs";
 import { t as motion } from "../_libs/motion.mjs";
-import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
-import { t as twMerge } from "../_libs/tailwind-merge.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/candidatura-DlUUsdQE.js
+import { t as cva } from "../_libs/class-variance-authority+clsx.mjs";
+import { C as playSuccessSound, E as submitRecruitment, S as playStepSound, T as saveDraft, _ as defaultValues, b as loadDraft, d as SIM_NAO, f as SiteFooter, g as cn, h as clearDraft, i as GUILD_NAME, m as TiltCard, n as FORM_STEPS, o as HORAS_DISPONIBILIDADE, p as SiteHeader, r as FUNCOES, s as PATENTES_LATAM, t as FIELD_LABELS, v as displayValue, w as recruitmentSchema, x as playSelectSound, y as formatApplicationMessage } from "./tilt-card-BlbI-YSI.mjs";
+import { n as toast } from "../_libs/sonner.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/candidatura-BUTyytjU.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
-function cn(...inputs) {
-	return twMerge(clsx(inputs));
-}
 function Label({ className, ...props }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
 		className: cn("flex items-baseline gap-3 text-sm font-medium text-foreground", className),
@@ -114,6 +110,19 @@ var ICONS_BY_VALUE = {
 	elite: Crown,
 	outra: Shield
 };
+function getBadgeStyle(badge, tier, selected) {
+	if (tier === "Mestre") return "bg-gradient-to-r from-red-600/25 to-amber-600/25 text-amber-300 border border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.25)]";
+	if (tier === "Elite") return "bg-gradient-to-r from-purple-600/25 to-pink-600/25 text-pink-300 border border-purple-500/40 shadow-[0_0_10px_rgba(168,85,247,0.25)]";
+	if (tier === "Diamante") return "bg-gradient-to-r from-cyan-600/25 to-blue-600/25 text-cyan-300 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.25)]";
+	if (tier === "Ouro/Platina") return "bg-gradient-to-r from-yellow-600/25 to-amber-600/25 text-yellow-300 border border-yellow-500/40";
+	if (badge === "Ataque") return "bg-red-500/15 text-red-400 border border-red-500/30";
+	if (badge === "Tático") return "bg-blue-500/15 text-blue-400 border border-blue-500/30";
+	if (badge === "Dano") return "bg-amber-500/15 text-amber-400 border border-amber-500/30";
+	if (badge === "Explosivo") return "bg-orange-500/15 text-orange-400 border border-orange-500/30";
+	if (badge === "Gás") return "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+	if (badge === "Coringa") return "bg-purple-500/15 text-purple-400 border border-purple-500/30";
+	return selected ? "bg-accent/20 text-accent border border-accent/30" : "bg-white/5 text-subtle border border-white/5";
+}
 function OptionCards({ name, value, options, onChange, columns = "two" }) {
 	function handleSelect(val) {
 		playSelectSound();
@@ -122,20 +131,22 @@ function OptionCards({ name, value, options, onChange, columns = "two" }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		role: "radiogroup",
 		"aria-label": name,
-		className: cn("grid gap-2.5", columns === "stack" ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"),
+		className: cn("grid gap-2.5 [perspective:1000px]", columns === "stack" ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"),
 		children: options.map((option) => {
 			const selected = value === option.value;
 			const Icon = ICONS_BY_VALUE[option.value];
+			const tagText = option.badge || option.tier;
+			const badgeClasses = getBadgeStyle(option.badge, option.tier, selected);
 			return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 				type: "button",
 				role: "radio",
 				"aria-checked": selected,
-				className: cn("option-card group relative flex items-start gap-3 p-3.5 text-left transition-all duration-150", selected && "option-card-selected"),
+				className: cn("option-card group relative flex items-start gap-3 p-3.5 text-left transition-all duration-200 rounded-xl", selected ? "option-card-selected shadow-[0_10px_24px_-4px_rgba(0,180,255,0.35)]" : "hover:-translate-y-0.5"),
 				onClick: () => handleSelect(option.value),
 				children: [
 					Icon ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: cn("flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors", selected ? "bg-accent/20 text-accent shadow-[0_0_12px_rgba(0,180,255,0.35)]" : "bg-white/5 text-muted-foreground group-hover:bg-white/10 group-hover:text-silver"),
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-4.5" })
+						className: cn("flex size-10 shrink-0 items-center justify-center rounded-lg transition-all duration-200", selected ? "bg-accent/25 text-accent shadow-[0_0_16px_rgba(0,180,255,0.4)] scale-105" : "bg-white/4 text-muted-foreground group-hover:bg-white/8 group-hover:text-silver"),
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-5" })
 					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 						className: cn("option-dot mt-1", selected && "option-dot-selected"),
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
@@ -144,35 +155,28 @@ function OptionCards({ name, value, options, onChange, columns = "two" }) {
 						})
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex-1 min-w-0",
+						className: "flex-1 min-w-0 pr-5",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "flex items-center justify-between gap-2",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: cn("font-medium text-sm leading-tight", selected ? "text-white" : "text-foreground"),
-									children: option.label
-								}),
-								option.badge ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: cn("text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded", selected ? "bg-accent/25 text-accent" : "bg-white/5 text-subtle"),
-									children: option.badge
-								}) : null,
-								option.tier ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: cn("text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded", selected ? "bg-accent/25 text-accent" : "bg-white/5 text-subtle"),
-									children: option.tier
-								}) : null
-							]
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: cn("font-medium text-sm leading-tight", selected ? "text-white font-semibold" : "text-foreground"),
+								children: option.label
+							}), tagText ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: cn("text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full transition-colors", badgeClasses),
+								children: tagText
+							}) : null]
 						}), option.desc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-1 text-xs leading-normal text-muted-foreground group-hover:text-silver/80",
+							className: "mt-1 text-xs leading-normal text-muted-foreground group-hover:text-silver/90",
 							children: option.desc
 						}) : null]
 					}),
-					Icon ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: cn("option-dot absolute top-3 right-3", selected && "option-dot-selected"),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: cn("option-dot absolute top-3.5 right-3.5 transition-all duration-200", selected ? "option-dot-selected scale-110" : "opacity-40 group-hover:opacity-75"),
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, {
 							className: "size-2.5",
 							strokeWidth: 3
 						})
-					}) : null
+					})
 				]
 			}, option.value);
 		})
@@ -706,120 +710,119 @@ function SuccessView({ values, onReset }) {
 					})
 				]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(motion.div, {
-				className: "mt-6 rounded-2xl border border-accent/25 bg-gradient-to-b from-card-2/90 via-card/80 to-card/95 p-5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] relative backdrop-blur-sm",
-				initial: reduce ? false : {
-					opacity: 0,
-					scale: .98
-				},
-				animate: {
-					opacity: 1,
-					scale: 1
-				},
-				transition: {
-					duration: .35,
-					delay: .1
-				},
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "flex items-center justify-between pb-3 border-b border-white/5",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex items-center gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-								className: "font-display text-lg tracking-[0.12em] text-silver",
-								children: [
-									GUILD_NAME,
-									" ",
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "text-accent",
-										children: "友"
-									})
-								]
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TiltCard, {
+				maxTilt: 14,
+				glareOpacity: .3,
+				className: "mt-6 rounded-2xl p-[1.5px] holographic-foil shadow-[0_20px_45px_rgba(0,0,0,0.65)] cursor-grab active:cursor-grabbing select-none",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "rounded-[15px] bg-gradient-to-b from-[#131c2a] via-[#0c121b] to-[#070a0f] p-5 relative overflow-hidden backdrop-blur-md",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+							src: "/latam-mark.webp",
+							alt: "",
+							className: "absolute -right-6 -bottom-6 size-36 opacity-10 pointer-events-none select-none",
+							"aria-hidden": "true"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-center justify-between pb-3.5 border-b border-white/8 relative z-10",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "font-display text-xl tracking-[0.14em] text-silver",
+									children: [
+										GUILD_NAME,
+										" ",
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-accent",
+											children: "友"
+										})
+									]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30 shadow-[0_0_8px_rgba(0,180,255,0.2)]",
+									children: ["Protocolo #", protocolId]
+								})]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-								className: "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30",
-								children: ["Protocolo #", protocolId]
+								className: "flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "size-1.5 rounded-full bg-emerald-400 animate-pulse" }), "Em Análise"]
 							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							className: "flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "size-1.5 rounded-full bg-emerald-400 animate-pulse" }), "Em Análise"]
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-xs uppercase font-medium tracking-wider text-subtle",
-								children: "Jogador"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
-								className: "font-display text-4xl tracking-wide text-white leading-tight",
-								children: values.nick
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "text-xs text-muted-foreground mt-0.5",
-								children: [
-									values.nome,
-									" • ",
-									values.cidadeEstado
-								]
-							})
-						] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "sm:text-right",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-xs uppercase font-medium tracking-wider text-subtle",
-								children: "ID Free Fire"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "font-mono text-base font-semibold text-accent tracking-wider",
-								children: values.idConta
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 relative z-10",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-[11px] uppercase font-semibold tracking-wider text-accent",
+									children: "Jogador Selecionado"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+									className: "font-display text-4xl tracking-wide text-white leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]",
+									children: values.nick
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "text-xs text-muted-foreground mt-0.5 font-medium",
+									children: [
+										values.nome,
+										" • ",
+										values.cidadeEstado
+									]
+								})
+							] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "sm:text-right",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-[11px] uppercase font-semibold tracking-wider text-subtle",
+									children: "ID Free Fire"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-mono text-lg font-bold text-accent tracking-wider drop-shadow-[0_0_10px_rgba(0,180,255,0.4)]",
+									children: values.idConta
+								})]
 							})]
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4 border-t border-white/5",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "rounded-lg bg-white/3 p-2.5 border border-white/5",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
-									children: "Função"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-display text-lg text-silver tracking-wide mt-0.5",
-									children: displayValue("funcao", values)
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "rounded-lg bg-white/3 p-2.5 border border-white/5",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
-									children: "Patente"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-display text-lg text-silver tracking-wide mt-0.5",
-									children: displayValue("patenteAtual", values)
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "rounded-lg bg-white/3 p-2.5 border border-white/5",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
-									children: "Tempo Diário"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-display text-lg text-silver tracking-wide mt-0.5",
-									children: displayValue("tempoDisponivel", values)
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "rounded-lg bg-white/3 p-2.5 border border-white/5",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
-									children: "Competitivo"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "font-display text-lg text-silver tracking-wide mt-0.5",
-									children: displayValue("experienciaCompetitiva", values)
-								})]
-							})
-						]
-					})
-				]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4 border-t border-white/8 relative z-10",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
+										children: "Função"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "font-display text-lg text-silver tracking-wide mt-0.5",
+										children: displayValue("funcao", values)
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
+										children: "Patente"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "font-display text-lg text-silver tracking-wide mt-0.5",
+										children: displayValue("patenteAtual", values)
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
+										children: "Tempo Diário"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "font-display text-lg text-silver tracking-wide mt-0.5",
+										children: displayValue("tempoDisponivel", values)
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-[10px] uppercase font-semibold text-subtle tracking-wide",
+										children: "Competitivo"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "font-display text-lg text-silver tracking-wide mt-0.5",
+										children: displayValue("experienciaCompetitiva", values)
+									})]
+								})
+							]
+						})
+					]
+				})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-6",

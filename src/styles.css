@@ -196,50 +196,75 @@
     min-height: 2.85rem;
     padding: 0 1.4rem;
     border-radius: var(--radius-md);
-    background: var(--color-accent);
+    background: linear-gradient(180deg, #3cc6ff 0%, #00a0e6 100%);
     color: var(--color-accent-foreground);
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 700;
     text-decoration: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      0 3px 0 #006699,
+      0 10px 24px -4px rgba(0, 180, 255, 0.5);
     transition:
       transform var(--motion-quick) var(--ease-out),
-      background-color var(--motion-quick) var(--ease-out);
+      box-shadow var(--motion-quick) var(--ease-out),
+      background var(--motion-quick) var(--ease-out);
+    position: relative;
   }
 
   .cta-jump:hover {
-    background: var(--color-accent-hover);
+    background: linear-gradient(180deg, #5dd0ff 0%, #00b4ff 100%);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.6),
+      0 5px 0 #006699,
+      0 16px 32px -4px rgba(0, 180, 255, 0.65);
   }
 
   .cta-jump:active {
-    transform: scale(0.96);
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 1px 0 #006699,
+      0 4px 12px -2px rgba(0, 180, 255, 0.4);
   }
 
   .cta-ghost {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.4rem;
     min-height: 2.85rem;
-    padding: 0 1.15rem;
+    padding: 0 1.25rem;
     border-radius: var(--radius-md);
     color: var(--color-silver);
     font-size: 0.9375rem;
     font-weight: 500;
     text-decoration: none;
-    box-shadow: var(--shadow-border);
-    background: transparent;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 4px 16px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
     transition:
       transform var(--motion-quick) var(--ease-out),
       box-shadow var(--motion-quick) var(--ease-out),
-      color var(--motion-quick) var(--ease-out);
+      color var(--motion-quick) var(--ease-out),
+      background var(--motion-quick) var(--ease-out);
   }
 
   .cta-ghost:hover {
     color: var(--color-foreground);
-    box-shadow: var(--shadow-border-hover);
+    background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 8px 24px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.16);
   }
 
   .cta-ghost:active {
-    transform: scale(0.96);
+    transform: translateY(1px);
   }
 
   .pillar-card,
@@ -247,8 +272,12 @@
   .section-card,
   .submit-panel,
   .summary-list {
-    background: var(--color-card);
-    box-shadow: var(--shadow-border);
+    background: linear-gradient(165deg, #111722 0%, #0a0e15 100%);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.5),
+      0 12px 32px -8px rgba(0, 0, 0, 0.7),
+      0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 
   .pillar-card {
@@ -330,36 +359,82 @@
 
   .option-card {
     display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    min-height: 2.75rem;
-    padding: 0.65rem 0.85rem;
-    border-radius: var(--radius-sm);
-    background: var(--color-card-2);
-    box-shadow: var(--shadow-border);
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-height: 3rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    background: linear-gradient(170deg, #131b26 0%, #0d121a 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 4px 12px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.06);
     color: var(--color-foreground);
     font-size: 0.9375rem;
     font-weight: 500;
     cursor: pointer;
     transition:
+      transform var(--motion-quick) var(--ease-out),
       box-shadow var(--motion-quick) var(--ease-out),
-      background-color var(--motion-quick) var(--ease-out),
-      color var(--motion-quick) var(--ease-out),
-      transform var(--motion-quick) var(--ease-out);
+      background var(--motion-quick) var(--ease-out);
+    position: relative;
   }
 
   .option-card:hover {
-    box-shadow: var(--shadow-border-hover);
+    transform: translateY(-2px);
+    background: linear-gradient(170deg, #172230 0%, #0f1622 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.2),
+      0 8px 20px -4px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.14);
   }
 
   .option-card:active {
-    transform: scale(0.98);
+    transform: translateY(1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
   }
 
   .option-card-selected {
-    background: color-mix(in oklab, var(--color-accent) 12%, var(--color-card-2));
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 70%, transparent);
-    color: var(--color-silver);
+    background: linear-gradient(170deg, #0e2233 0%, #091724 100%) !important;
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      0 8px 24px -4px rgba(0, 180, 255, 0.35),
+      0 0 0 1.5px var(--color-accent) !important;
+    color: #fff;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .transform-3d {
+    transform-style: preserve-3d;
+  }
+
+  .holographic-foil {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(0, 180, 255, 0.2) 25%,
+      rgba(240, 90, 255, 0.15) 50%,
+      rgba(0, 255, 180, 0.2) 75%,
+      rgba(255, 255, 255, 0.05) 100%
+    );
+    background-size: 250% 250%;
+    animation: holo-shine 6s ease infinite alternate;
+  }
+
+  @keyframes holo-shine {
+    0% {
+      background-position: 0% 0%;
+    }
+    100% {
+      background-position: 100% 100%;
+    }
   }
 
   .option-dot {

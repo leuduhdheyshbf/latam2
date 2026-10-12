@@ -4638,6 +4638,230 @@ function isSVGSVGElement(element) {
 	return isSVGElement(element) && element.tagName === "svg";
 }
 //#endregion
+//#region node_modules/motion-dom/dist/es/utils/transform.mjs
+function transform(...args) {
+	const useImmediate = !Array.isArray(args[0]);
+	const argOffset = useImmediate ? 0 : -1;
+	const inputValue = args[0 + argOffset];
+	const inputRange = args[1 + argOffset];
+	const outputRange = args[2 + argOffset];
+	const options = args[3 + argOffset];
+	const interpolator = interpolate(inputRange, outputRange, options);
+	return useImmediate ? interpolator(inputValue) : interpolator;
+}
+//#endregion
+//#region node_modules/motion-dom/dist/es/animation/FollowAnimation.mjs
+/**
+* Every running follower ticks from this one frame callback.
+*/
+var active = /* @__PURE__ */ new Set();
+var tickAll = ({ timestamp }) => {
+	active.forEach((animation) => animation.tick(timestamp));
+};
+/**
+* A lean animation for values that follow a target (`followValue`,
+* `springValue`): a single numeric generator, retargeted in place as
+* the target moves and ticked from a frame callback shared by every
+* follower. Only implements the controls `MotionValue.animation`
+* exposes. Repeat options are ignored: a follower only ever heads for
+* its latest target.
+*/
+var FollowAnimation = class extends WithPromise {
+	constructor(options) {
+		super();
+		this.state = "idle";
+		this.startTime = 0;
+		this.currentTime = 0;
+		/**
+		* Whether the first tick has fired `onPlay`.
+		*/
+		this.started = false;
+		/**
+		* A target set since the last tick, applied at the next one so any
+		* number of sets per frame cost one retarget.
+		*/
+		this.hasNextTarget = false;
+		this.nextTarget = 0;
+		/**
+		* Bound to the instance so `animation.stop` can be passed around.
+		*/
+		this.stop = () => {
+			if (this.state === "idle") return;
+			this.teardown();
+			this.options.onStop?.();
+		};
+		this.options = options;
+		replaceTransitionType(options);
+		this.factory = options.type || keyframes;
+		this.generator = this.factory(options);
+		const { driver } = options;
+		if (driver) this.driver = driver((timestamp) => this.tick(timestamp));
+		this.startTime = this.now();
+		this.state = "running";
+		if (this.driver) this.driver.start();
+		else {
+			active.size || frame.update(tickAll, true);
+			active.add(this);
+		}
+	}
+	/**
+	* Aim at a new target from wherever the animation has reached by the
+	* next tick. `velocity` fixes the velocity to steer with, otherwise
+	* the generator's is used.
+	*/
+	setTarget(target, velocity) {
+		this.nextTarget = target;
+		this.nextVelocity = velocity;
+		this.hasNextTarget = true;
+	}
+	/**
+	* Steer towards new keyframes from the current position and velocity.
+	* Springs are updated in place; other generators are recreated.
+	*/
+	retarget(keyframes, velocity) {
+		const { options, generator } = this;
+		options.keyframes = keyframes;
+		options.velocity = velocity;
+		this.startTime = this.now();
+		this.currentTime = 0;
+		if (generator.retarget) generator.retarget(keyframes, velocity);
+		else this.generator = this.factory(options);
+	}
+	tick(timestamp) {
+		const { options, hasNextTarget: retargeted } = this;
+		const { delay = 0, onUpdate, onPlay } = options;
+		const elapsed = Math.round(timestamp - this.startTime) - delay;
+		const t = this.currentTime = Math.max(0, elapsed);
+		const state = this.generator.next(t);
+		const value = elapsed < 0 ? options.keyframes[0] : state.value;
+		if (retargeted) {
+			/**
+			* Steer from where the current trajectory has reached this
+			* frame, then render that position as the new origin.
+			*/
+			this.hasNextTarget = false;
+			const { keyframes } = options;
+			keyframes[0] = value;
+			keyframes[1] = this.nextTarget;
+			this.retarget(keyframes, this.nextVelocity ?? this.getGeneratorVelocity());
+		}
+		if (retargeted || !this.started) {
+			this.started = true;
+			onPlay?.();
+		}
+		/**
+		* Callbacks may stop this animation or set a new target, so check
+		* the live state rather than what was read at the top of the tick.
+		*/
+		if (this.state !== "running") return;
+		onUpdate?.(value);
+		if (state.done && elapsed >= 0 && !retargeted && !this.hasNextTarget && this.state === "running") {
+			this.notifyFinished();
+			this.teardown();
+			this.state = "finished";
+			options.onComplete?.();
+		}
+	}
+	getGeneratorVelocity() {
+		return calcGeneratorVelocity(this.generator, this.currentTime, this.options.velocity);
+	}
+	now() {
+		return this.driver ? this.driver.now() : time.now();
+	}
+	teardown() {
+		this.state = "idle";
+		if (this.driver) this.driver.stop();
+		else {
+			active.delete(this);
+			active.size || cancelFrame(tickAll);
+		}
+	}
+};
+//#endregion
+//#region node_modules/motion-dom/dist/es/value/follow-value.mjs
+/**
+* Attach an animation to a MotionValue that will animate whenever the value changes.
+* Similar to attachSpring but supports any transition type (spring, tween, inertia, etc.)
+*
+* @param value - The MotionValue to animate
+* @param source - Initial value or MotionValue to track
+* @param options - Animation transition options
+* @returns Cleanup function
+*
+* @public
+*/
+function attachFollow(value, source, options = {}) {
+	const initialValue = value.get();
+	let activeAnimation = null;
+	let set;
+	const unit = typeof initialValue === "string" ? initialValue.replace(/[\d.-]/g, "") : void 0;
+	const onUpdate = (v) => set(unit ? v + unit : v);
+	const onPlay = () => value["events"].animationStart?.notify();
+	const stopAnimation = () => {
+		if (activeAnimation) {
+			activeAnimation.stop();
+			activeAnimation = null;
+		}
+		value.animation = void 0;
+	};
+	value.attach((v, safeSet) => {
+		set = safeSet;
+		const target = asNumber$1(v);
+		if (activeAnimation?.state === "running") {
+			/**
+			* Steer the running animation rather than replacing it. This
+			* keeps its completion promise and uses its analytical velocity
+			* for accuracy, preventing systematic velocity loss at high
+			* frame rates (240hz+).
+			*/
+			activeAnimation.setTarget(target, options.velocity);
+			return;
+		}
+		const current = asNumber$1(value.get());
+		const velocity = activeAnimation ? activeAnimation.getGeneratorVelocity() : value.getVelocity();
+		stopAnimation();
+		if (current === target) return;
+		const animation = activeAnimation = new FollowAnimation({
+			keyframes: [current, target],
+			velocity,
+			type: "spring",
+			restDelta: .001,
+			restSpeed: .01,
+			...options,
+			onUpdate,
+			onPlay
+		});
+		value.animation = animation;
+		animation.then(() => {
+			if (activeAnimation !== animation) return;
+			activeAnimation = null;
+			value.animation = void 0;
+			value["events"].animationComplete?.notify();
+		});
+	}, stopAnimation);
+	if (isMotionValue(source)) {
+		let skipNextAnimation = options.skipInitialAnimation === true;
+		const removeSourceOnChange = source.on("change", (v) => {
+			if (skipNextAnimation) {
+				skipNextAnimation = false;
+				value.jump(parseValue(v, unit), false);
+			} else value.set(parseValue(v, unit));
+		});
+		const removeValueOnDestroy = value.on("destroy", removeSourceOnChange);
+		return () => {
+			removeSourceOnChange();
+			removeValueOnDestroy();
+		};
+	}
+	return stopAnimation;
+}
+function parseValue(v, unit) {
+	return unit ? v + unit : v;
+}
+function asNumber$1(v) {
+	return typeof v === "number" ? v : parseFloat(v);
+}
+//#endregion
 //#region node_modules/motion-dom/dist/es/projection/geometry/models.mjs
 var createAxisDelta = () => ({
 	translate: 0,
@@ -9958,6 +10182,143 @@ var motion = /*@__PURE__*/ createMotionProxy({
 	...layout
 }, createDomVisualElement);
 //#endregion
+//#region node_modules/framer-motion/dist/es/value/use-motion-value.mjs
+/**
+* Creates a `MotionValue` to track the state and velocity of a value.
+*
+* Usually, these are created automatically. For advanced use-cases, like use with `useTransform`, you can create `MotionValue`s externally and pass them into the animated component via the `style` prop.
+*
+* ```jsx
+* export const MyComponent = () => {
+*   const scale = useMotionValue(1)
+*
+*   return <motion.div style={{ scale }} />
+* }
+* ```
+*
+* @param initial - The initial state.
+*
+* @public
+*/
+function useMotionValue(initial) {
+	const value = useConstant(() => motionValue(initial));
+	/**
+	* If this motion value is being used in static mode, like on
+	* the Framer canvas, force components to rerender when the motion
+	* value is updated.
+	*/
+	const { isStatic } = (0, import_react.useContext)(MotionConfigContext);
+	if (isStatic) {
+		const [, setLatest] = (0, import_react.useState)(initial);
+		(0, import_react.useEffect)(() => value.on("change", setLatest), []);
+	}
+	return value;
+}
+//#endregion
+//#region node_modules/framer-motion/dist/es/value/use-combine-values.mjs
+function useCombineMotionValues(values, combineValues) {
+	/**
+	* Initialise the returned motion value. This remains the same between renders.
+	*/
+	const value = useMotionValue(combineValues());
+	/**
+	* Create a function that will update the template motion value with the latest values.
+	* This is pre-bound so whenever a motion value updates it can schedule its
+	* execution in Framesync. If it's already been scheduled it won't be fired twice
+	* in a single frame.
+	*/
+	const updateValue = () => value.set(combineValues());
+	/**
+	* Synchronously update the motion value with the latest values during the render.
+	* This ensures that within a React render, the styles applied to the DOM are up-to-date.
+	*/
+	updateValue();
+	/**
+	* Subscribe to all motion values found within the template. Whenever any of them change,
+	* schedule an update.
+	*/
+	useIsomorphicLayoutEffect(() => {
+		const scheduleUpdate = () => frame.preRender(updateValue, false, true);
+		const subscriptions = values.map((v) => v.on("change", scheduleUpdate));
+		return () => {
+			subscriptions.forEach((unsubscribe) => unsubscribe());
+			cancelFrame(updateValue);
+		};
+	});
+	return value;
+}
+//#endregion
+//#region node_modules/framer-motion/dist/es/value/use-computed.mjs
+function useComputed(compute) {
+	/**
+	* Open session of collectMotionValues. Any MotionValue that calls get()
+	* will be saved into this array.
+	*/
+	collectMotionValues.current = [];
+	compute();
+	const value = useCombineMotionValues(collectMotionValues.current, compute);
+	/**
+	* Synchronously close session of collectMotionValues.
+	*/
+	collectMotionValues.current = void 0;
+	return value;
+}
+//#endregion
+//#region node_modules/framer-motion/dist/es/value/use-transform.mjs
+function useTransform(input, inputRangeOrTransformer, outputRangeOrMap, options) {
+	if (typeof input === "function") return useComputed(input);
+	if (outputRangeOrMap !== void 0 && !Array.isArray(outputRangeOrMap) && typeof inputRangeOrTransformer !== "function") return useMapTransform(input, inputRangeOrTransformer, outputRangeOrMap, options);
+	const transformer = typeof inputRangeOrTransformer === "function" ? inputRangeOrTransformer : transform(inputRangeOrTransformer, outputRangeOrMap, options);
+	const result = Array.isArray(input) ? useListTransform(input, transformer) : useListTransform([input], ([latest]) => transformer(latest));
+	const inputAccelerate = !Array.isArray(input) ? input.accelerate : void 0;
+	if (inputAccelerate && !inputAccelerate.isTransformed && typeof inputRangeOrTransformer !== "function" && Array.isArray(outputRangeOrMap) && options?.clamp !== false) result.accelerate = {
+		...inputAccelerate,
+		times: inputRangeOrTransformer,
+		keyframes: outputRangeOrMap,
+		isTransformed: true,
+		...options?.ease ? { ease: options.ease } : {}
+	};
+	return result;
+}
+function useListTransform(values, transformer) {
+	const latest = useConstant(() => []);
+	return useCombineMotionValues(values, () => {
+		latest.length = 0;
+		const numValues = values.length;
+		for (let i = 0; i < numValues; i++) latest[i] = values[i].get();
+		return transformer(latest);
+	});
+}
+function useMapTransform(inputValue, inputRange, outputMap, options) {
+	/**
+	* Capture keys once to ensure hooks are called in consistent order.
+	*/
+	const keys = useConstant(() => Object.keys(outputMap));
+	const output = useConstant(() => ({}));
+	for (const key of keys) output[key] = useTransform(inputValue, inputRange, outputMap[key], options);
+	return output;
+}
+//#endregion
+//#region node_modules/framer-motion/dist/es/value/use-follow-value.mjs
+function useFollowValue(source, options = {}) {
+	const { isStatic } = (0, import_react.useContext)(MotionConfigContext);
+	const getFromSource = () => isMotionValue(source) ? source.get() : source;
+	if (isStatic) return useTransform(getFromSource);
+	const value = useMotionValue(getFromSource());
+	(0, import_react.useInsertionEffect)(() => {
+		return attachFollow(value, source, options);
+	}, [value, JSON.stringify(options)]);
+	return value;
+}
+//#endregion
+//#region node_modules/framer-motion/dist/es/value/use-spring.mjs
+function useSpring(source, options = {}) {
+	return useFollowValue(source, {
+		type: "spring",
+		...options
+	});
+}
+//#endregion
 //#region node_modules/framer-motion/dist/es/utils/reduced-motion/use-reduced-motion.mjs
 /**
 * A hook that returns `true` if we should be using reduced motion based on the current device's Reduced Motion setting.
@@ -9997,4 +10358,4 @@ function useReducedMotion() {
 	return shouldReduceMotion;
 }
 //#endregion
-export { motion as n, AnimatePresence as r, useReducedMotion as t };
+export { motion as a, useMotionValue as i, useSpring as n, AnimatePresence as o, useTransform as r, useReducedMotion as t };

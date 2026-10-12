@@ -11,6 +11,7 @@ import {
   GUILD_NAME,
   type RecruitmentValues,
 } from "@/lib/recruitment";
+import { TiltCard } from "@/components/ui/tilt-card";
 import { playSuccessSound } from "@/lib/sound";
 
 const SUMMARY_KEYS: (keyof RecruitmentValues)[] = [
@@ -113,80 +114,89 @@ export function SuccessView({ values, onReset }: SuccessViewProps) {
         </div>
       </motion.div>
 
-      {/* Cartão Tático do Jogador (Player Badge) */}
-      <motion.div
-        className="mt-6 rounded-2xl border border-accent/25 bg-gradient-to-b from-card-2/90 via-card/80 to-card/95 p-5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] relative backdrop-blur-sm"
-        initial={reduce ? false : { opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.35, delay: 0.1 }}
+      {/* Cartão Tático 3D do Jogador (VIP Holographic Player Badge) */}
+      <TiltCard
+        maxTilt={14}
+        glareOpacity={0.3}
+        className="mt-6 rounded-2xl p-[1.5px] holographic-foil shadow-[0_20px_45px_rgba(0,0,0,0.65)] cursor-grab active:cursor-grabbing select-none"
       >
-        <div className="flex items-center justify-between pb-3 border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <span className="font-display text-lg tracking-[0.12em] text-silver">
-              {GUILD_NAME} <span className="text-accent">{GUILD_MARK}</span>
+        <div className="rounded-[15px] bg-gradient-to-b from-[#131c2a] via-[#0c121b] to-[#070a0f] p-5 relative overflow-hidden backdrop-blur-md">
+          {/* Marca d'água sutil do brasão no fundo */}
+          <img
+            src="/latam-mark.webp"
+            alt=""
+            className="absolute -right-6 -bottom-6 size-36 opacity-10 pointer-events-none select-none"
+            aria-hidden="true"
+          />
+
+          <div className="flex items-center justify-between pb-3.5 border-b border-white/8 relative z-10">
+            <div className="flex items-center gap-2">
+              <span className="font-display text-xl tracking-[0.14em] text-silver">
+                {GUILD_NAME} <span className="text-accent">{GUILD_MARK}</span>
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30 shadow-[0_0_8px_rgba(0,180,255,0.2)]">
+                Protocolo #{protocolId}
+              </span>
+            </div>
+
+            <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Em Análise
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30">
-              Protocolo #{protocolId}
-            </span>
           </div>
 
-          <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
-            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Em Análise
-          </span>
-        </div>
+          {/* Nick e Nome */}
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 relative z-10">
+            <div>
+              <p className="text-[11px] uppercase font-semibold tracking-wider text-accent">Jogador Selecionado</p>
+              <h3 className="font-display text-4xl tracking-wide text-white leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
+                {values.nick}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+                {values.nome} • {values.cidadeEstado}
+              </p>
+            </div>
 
-        {/* Nick e Nome */}
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
-          <div>
-            <p className="text-xs uppercase font-medium tracking-wider text-subtle">Jogador</p>
-            <h3 className="font-display text-4xl tracking-wide text-white leading-tight">
-              {values.nick}
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {values.nome} • {values.cidadeEstado}
-            </p>
+            <div className="sm:text-right">
+              <p className="text-[11px] uppercase font-semibold tracking-wider text-subtle">ID Free Fire</p>
+              <p className="font-mono text-lg font-bold text-accent tracking-wider drop-shadow-[0_0_10px_rgba(0,180,255,0.4)]">
+                {values.idConta}
+              </p>
+            </div>
           </div>
 
-          <div className="sm:text-right">
-            <p className="text-xs uppercase font-medium tracking-wider text-subtle">ID Free Fire</p>
-            <p className="font-mono text-base font-semibold text-accent tracking-wider">
-              {values.idConta}
-            </p>
-          </div>
-        </div>
+          {/* Grid de Atributos Táticos 3D */}
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4 border-t border-white/8 relative z-10">
+            <div className="rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Função</p>
+              <p className="font-display text-lg text-silver tracking-wide mt-0.5">
+                {displayValue("funcao", values)}
+              </p>
+            </div>
 
-        {/* Grid de Atributos Táticos */}
-        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4 border-t border-white/5">
-          <div className="rounded-lg bg-white/3 p-2.5 border border-white/5">
-            <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Função</p>
-            <p className="font-display text-lg text-silver tracking-wide mt-0.5">
-              {displayValue("funcao", values)}
-            </p>
-          </div>
+            <div className="rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Patente</p>
+              <p className="font-display text-lg text-silver tracking-wide mt-0.5">
+                {displayValue("patenteAtual", values)}
+              </p>
+            </div>
 
-          <div className="rounded-lg bg-white/3 p-2.5 border border-white/5">
-            <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Patente</p>
-            <p className="font-display text-lg text-silver tracking-wide mt-0.5">
-              {displayValue("patenteAtual", values)}
-            </p>
-          </div>
+            <div className="rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Tempo Diário</p>
+              <p className="font-display text-lg text-silver tracking-wide mt-0.5">
+                {displayValue("tempoDisponivel", values)}
+              </p>
+            </div>
 
-          <div className="rounded-lg bg-white/3 p-2.5 border border-white/5">
-            <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Tempo Diário</p>
-            <p className="font-display text-lg text-silver tracking-wide mt-0.5">
-              {displayValue("tempoDisponivel", values)}
-            </p>
-          </div>
-
-          <div className="rounded-lg bg-white/3 p-2.5 border border-white/5">
-            <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Competitivo</p>
-            <p className="font-display text-lg text-silver tracking-wide mt-0.5">
-              {displayValue("experienciaCompetitiva", values)}
-            </p>
+            <div className="rounded-lg bg-black/35 p-2.5 border border-white/6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              <p className="text-[10px] uppercase font-semibold text-subtle tracking-wide">Competitivo</p>
+              <p className="font-display text-lg text-silver tracking-wide mt-0.5">
+                {displayValue("experienciaCompetitiva", values)}
+              </p>
+            </div>
           </div>
         </div>
-      </motion.div>
+      </TiltCard>
 
       {/* Detalhamento Completo */}
       <div className="mt-6">
