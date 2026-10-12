@@ -38,32 +38,32 @@ export const REQUIREMENTS = [
 ] as const;
 
 export const FUNCOES = [
-  { value: "rush", label: "Rush" },
-  { value: "suporte", label: "Suporte" },
-  { value: "fuzileiro", label: "Fuzileiro" },
-  { value: "granadeiro", label: "Granadeiro" },
-  { value: "full_gas", label: "Full Gás" },
-  { value: "cura", label: "Cura" },
-  { value: "flexivel", label: "Flexível" },
+  { value: "rush", label: "Rush", desc: "Linha de frente e invasão agressiva", badge: "Ataque" },
+  { value: "suporte", label: "Suporte", desc: "Cobertura, visão e resgate de equipe", badge: "Tático" },
+  { value: "fuzileiro", label: "Fuzileiro", desc: "Precisão e dano contínuo à distância", badge: "Dano" },
+  { value: "granadeiro", label: "Granadeiro", desc: "Explosivos táticos, gel e quebra de formação", badge: "Explosivo" },
+  { value: "full_gas", label: "Full Gás", desc: "Sobrevivência, rotação e pontuação estratégica", badge: "Gás" },
+  { value: "cura", label: "Cura", desc: "Sustentação médica e suporte de recursos", badge: "Suporte" },
+  { value: "flexivel", label: "Flexível", desc: "Adaptação rápida a qualquer papel da call", badge: "Coringa" },
 ] as const;
 
 export const PATENTES_LATAM = [
-  { value: "ouro_platina", label: "Ouro–Platina" },
-  { value: "platina_diamente", label: "Platina–Diamante" },
-  { value: "diamente_mestre", label: "Diamante–Mestre de Honra" },
-  { value: "elite", label: "Elite+" },
-  { value: "outra", label: "Outra" },
+  { value: "ouro_platina", label: "Ouro–Platina", desc: "Evoluindo nas ranqueadas", tier: "Ouro/Platina" },
+  { value: "platina_diamente", label: "Platina–Diamante", desc: "Domínio de rotação e trocação", tier: "Diamante" },
+  { value: "diamente_mestre", label: "Diamante–Mestre de Honra", desc: "Patente alta com leitura de jogo", tier: "Mestre" },
+  { value: "elite", label: "Elite+", desc: "Topo do ranking competitivo", tier: "Elite" },
+  { value: "outra", label: "Outra", desc: "Iniciando a jornada ou retorno ao jogo", tier: "Casual" },
 ] as const;
 
 export const SIM_NAO = [
-  { value: "sim", label: "Sim" },
-  { value: "nao", label: "Não" },
+  { value: "sim", label: "Sim", desc: "Já disputei treinos, guildas ou campeonatos" },
+  { value: "nao", label: "Não", desc: "Buscando minha primeira guilda competitiva" },
 ] as const;
 
 export const HORAS_DISPONIBILIDADE = [
-  { value: "1-2h", label: "1–2 horas" },
-  { value: "2-4h", label: "2–4 horas" },
-  { value: "4+h", label: "4+ horas" },
+  { value: "1-2h", label: "1–2 horas", desc: "Tempo focado para partidas diárias" },
+  { value: "2-4h", label: "2–4 horas", desc: "Ideal para treinos e line-ups" },
+  { value: "4+h", label: "4+ horas", desc: "Disponibilidade intensa e dedicação máxima" },
 ] as const;
 
 export const FORM_STEPS = [

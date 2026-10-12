@@ -1,11 +1,11 @@
 import { i as __toESM, n as __exportAll } from "../_runtime.mjs";
 import { i as require_react } from "../_libs/@hookform/resolvers+[...].mjs";
-import { _ as createFileRoute, b as useRouter, d as HeadContent, g as lazyRouteComponent, h as Outlet, m as createRouter, u as Scripts, v as createRootRoute, x as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
+import { _ as createRootRoute, b as require_jsx_runtime, d as HeadContent, g as createFileRoute, h as lazyRouteComponent, m as Outlet, p as createRouter, u as Scripts, y as useRouter } from "../_libs/@tanstack/react-router+[...].mjs";
+import { c as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as union, i as string, n as number, r as object, t as literal } from "../_libs/zod.mjs";
-import { r as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { t as Toaster } from "../_libs/sonner.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CC0K7ai1.js
-var router_CC0K7ai1_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-CbVN8zYN.js
+var router_CbVN8zYN_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var FALLBACK_MESSAGE = "Algo deu errado. Recarregue a página.";
@@ -299,7 +299,7 @@ function PreviewHostBridge() {
 	}, [router]);
 	return null;
 }
-var styles_default = "/assets/styles-BTNim_ez.css";
+var styles_default = "/assets/styles-D9qFpwPO.css";
 var APP_NAME = "LATAM 友";
 var Route$2 = createRootRoute({
 	head: () => ({
@@ -368,9 +368,9 @@ var Route$2 = createRootRoute({
 		] })]
 	})
 });
-var $$splitComponentImporter$1 = () => import("./routes-8MT-qE_C.mjs");
+var $$splitComponentImporter$1 = () => import("./routes-DFiZkz-T.mjs");
 var Route$1 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter$1, "component") });
-var $$splitComponentImporter = () => import("./candidatura-CDFHEg5-.mjs");
+var $$splitComponentImporter = () => import("./candidatura-DlUUsdQE.mjs");
 var Route = createFileRoute("/candidatura")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
 var rootRouteChildren = {
 	IndexRoute: Route$1.update({
@@ -392,4 +392,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_CC0K7ai1_exports as t };
+export { getRouter, router_CbVN8zYN_exports as t };

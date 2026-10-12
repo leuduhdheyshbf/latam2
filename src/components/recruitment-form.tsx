@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Clock, Loader2, Send, Trophy, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock, Loader2, Send, Trophy, Users } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OptionCards } from "@/components/ui/option-cards";
 import { Textarea } from "@/components/ui/textarea";
+import { maskPhone, maskPlayerId } from "@/lib/masks";
 import {
   defaultValues,
   FORM_STEPS,
@@ -22,6 +23,7 @@ import {
   type RecruitmentInput,
   type RecruitmentValues,
 } from "@/lib/recruitment";
+import { playStepSound } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 
 type RecruitmentFormProps = {
@@ -62,7 +64,6 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     saveDraft(values);
   }, [hydrated, values]);
 
-
   function onInvalid() {
     requestAnimationFrame(() => {
       const first = document.querySelector("[data-error='true']");
@@ -77,15 +78,18 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
       onInvalid();
       return;
     }
+    playStepSound();
     setStep((current) => Math.min(current + 1, FORM_STEPS.length - 1));
   }
 
   function goBack() {
+    playStepSound();
     setStep((current) => Math.max(current - 1, 0));
   }
 
   const progress = (step + 1) / FORM_STEPS.length;
   const current = FORM_STEPS[step];
+  const isValidId = values.idConta && values.idConta.length >= 8 && values.idConta.length <= 12;
 
   return (
     <form
@@ -102,7 +106,12 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
       noValidate
     >
       <div>
-        <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">Candidatura</p>
+        <div className="flex items-center gap-2">
+          <span className="flex size-2 rounded-full bg-accent animate-pulse" />
+          <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
+            Recrutamento Oficial
+          </p>
+        </div>
         <h1 className="font-display mt-2 text-4xl tracking-wide text-silver">{current.heading}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{current.copy}</p>
       </div>
@@ -112,31 +121,41 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
           <span>
             Passo {String(step + 1).padStart(2, "0")} de {String(FORM_STEPS.length).padStart(2, "0")}
           </span>
-          <span>{current.title}</span>
+          <span className="text-silver font-semibold">{current.title}</span>
         </div>
         <div className="progress-track" aria-hidden="true">
           <div className="progress-fill" style={{ transform: `scaleX(${progress})` }} />
         </div>
         <ol className="flex gap-2">
-          {FORM_STEPS.map((item, index) => (
-            <li key={item.id} className="flex-1">
-              <button
-                type="button"
-                disabled={index > step}
-                onClick={() => index < step && setStep(index)}
-                className={cn(
-                  "w-full rounded-md py-2 text-center text-[11px] font-semibold tracking-wide uppercase transition-[color,background-color] duration-[var(--motion-quick)]",
-                  index === step
-                    ? "bg-accent/10 text-accent"
-                    : index < step
-                      ? "text-silver"
-                      : "text-subtle",
-                )}
-              >
-                {item.title}
-              </button>
-            </li>
-          ))}
+          {FORM_STEPS.map((item, index) => {
+            const isDone = index < step;
+            const isCurrent = index === step;
+            return (
+              <li key={item.id} className="flex-1">
+                <button
+                  type="button"
+                  disabled={index > step}
+                  onClick={() => {
+                    if (index < step) {
+                      playStepSound();
+                      setStep(index);
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 w-full rounded-md py-2 text-center text-[11px] font-semibold tracking-wide uppercase transition-all duration-150",
+                    isCurrent
+                      ? "bg-accent/15 text-accent shadow-[0_0_12px_rgba(0,180,255,0.2)]"
+                      : isDone
+                        ? "bg-white/5 text-silver hover:bg-white/10"
+                        : "text-subtle",
+                  )}
+                >
+                  {isDone ? <Check className="size-3 text-accent" strokeWidth={3} /> : null}
+                  <span>{item.title}</span>
+                </button>
+              </li>
+            );
+          })}
         </ol>
       </div>
 
@@ -151,37 +170,64 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
           {step === 0 ? (
             <SectionCard id="dados" eyebrow="01" title="Informações do jogador" icon={Users}>
               <Field number={1} label="Nome" htmlFor="nome" error={errors.nome?.message}>
-                <Input id="nome" autoComplete="name" placeholder="Seu nome completo" {...register("nome")} />
+                <Input
+                  id="nome"
+                  autoComplete="name"
+                  placeholder="Seu nome completo"
+                  {...register("nome")}
+                />
               </Field>
               <Field number={2} label="Idade" htmlFor="idade" error={errors.idade?.message}>
                 <Input
                   id="idade"
                   inputMode="numeric"
                   maxLength={3}
-                  placeholder="Sua idade"
-                  {...register("idade")}
-                />
-              </Field>
-              <Field number={3} label="Nickname do jogo" htmlFor="nick" error={errors.nick?.message}>
-                <Input id="nick" placeholder="Seu nickname no jogo" {...register("nick")} />
-              </Field>
-              <Field number={4} label="ID da conta" htmlFor="idConta" error={errors.idConta?.message}>
-                <Input
-                  id="idConta"
-                  inputMode="numeric"
-                  maxLength={15}
-                  placeholder="ID da sua conta"
-                  {...register("idConta", {
+                  placeholder="Sua idade (ex: 18)"
+                  {...register("idade", {
                     onChange: (event) => {
-                      const digits = event.target.value.replace(/\D/g, "").slice(0, 15);
-                      setValue("idConta", digits, { shouldValidate: false });
+                      const digits = event.target.value.replace(/\D/g, "").slice(0, 3);
+                      setValue("idade", digits, { shouldValidate: false });
                     },
                   })}
                 />
               </Field>
+              <Field number={3} label="Nickname no Free Fire" htmlFor="nick" error={errors.nick?.message}>
+                <Input
+                  id="nick"
+                  placeholder="Seu nick exato no jogo"
+                  {...register("nick")}
+                />
+              </Field>
+              <Field
+                number={4}
+                label="ID da conta"
+                htmlFor="idConta"
+                error={errors.idConta?.message}
+              >
+                <div className="relative">
+                  <Input
+                    id="idConta"
+                    inputMode="numeric"
+                    maxLength={12}
+                    placeholder="ID numérico da sua conta FF"
+                    {...register("idConta", {
+                      onChange: (event) => {
+                        const digits = maskPlayerId(event.target.value);
+                        setValue("idConta", digits, { shouldValidate: false });
+                      },
+                    })}
+                  />
+                  {isValidId ? (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full pointer-events-none">
+                      <CheckCircle2 className="size-3" />
+                      ID Válido
+                    </span>
+                  ) : null}
+                </div>
+              </Field>
               <Field
                 number={5}
-                label="Cidade/Estado"
+                label="Cidade / Estado"
                 htmlFor="cidadeEstado"
                 error={errors.cidadeEstado?.message}
               >
@@ -191,14 +237,19 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                   {...register("cidadeEstado")}
                 />
               </Field>
-              <Field number={6} label="Qual seu WhatsApp?" htmlFor="whatsapp" error={errors.whatsapp?.message}>
+              <Field number={6} label="WhatsApp (com DDD)" htmlFor="whatsapp" error={errors.whatsapp?.message}>
                 <Input
                   id="whatsapp"
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
                   placeholder="Ex: (11) 99999-9999"
-                  {...register("whatsapp")}
+                  {...register("whatsapp", {
+                    onChange: (event) => {
+                      const masked = maskPhone(event.target.value);
+                      setValue("whatsapp", masked, { shouldValidate: false });
+                    },
+                  })}
                 />
               </Field>
             </SectionCard>
@@ -258,24 +309,43 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       value={field.value}
                       onChange={field.onChange}
                       options={SIM_NAO}
+                      columns="stack"
                     />
                   )}
                 />
               </Field>
-              <Field
-                number={10}
-                label="Se sim, conte brevemente sua experiência."
-                htmlFor="experienciaDescricao"
-                error={errors.experienciaDescricao?.message}
-              >
-                <Textarea
-                  id="experienciaDescricao"
-                  rows={4}
-                  maxLength={800}
-                  placeholder="Competições, guildas anteriores, campeonatos..."
-                  {...register("experienciaDescricao")}
-                />
-              </Field>
+
+              <AnimatePresence>
+                {values.experienciaCompetitiva === "sim" ? (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <Field
+                      number={10}
+                      label="Conte brevemente sua experiência competitiva"
+                      htmlFor="experienciaDescricao"
+                      error={errors.experienciaDescricao?.message}
+                    >
+                      <Textarea
+                        id="experienciaDescricao"
+                        rows={3}
+                        maxLength={800}
+                        placeholder="Campeonatos disputados, guildas anteriores, line-ups, funções..."
+                        {...register("experienciaDescricao")}
+                      />
+                      <div className="flex justify-end mt-1">
+                        <span className="text-[11px] text-subtle">
+                          {(values.experienciaDescricao || "").length}/800 caracteres
+                        </span>
+                      </div>
+                    </Field>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </SectionCard>
           ) : null}
 
@@ -308,7 +378,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
               >
                 <Input
                   id="horarioDisponivel"
-                  placeholder="Ex: 19h às 23h"
+                  placeholder="Ex: 19h às 23h (Treinos e Ranqueadas)"
                   {...register("horarioDisponivel")}
                 />
               </Field>
@@ -318,7 +388,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
       </AnimatePresence>
 
       <div className="submit-panel">
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2.5 sm:flex-row">
           {step > 0 ? (
             <Button
               type="button"
@@ -341,13 +411,13 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
           ) : (
             <Button type="submit" size="lg" className="w-full flex-1" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              {isSubmitting ? "Enviando..." : "Enviar candidatura"}
+              {isSubmitting ? "Enviando para a liderança..." : "Enviar candidatura"}
             </Button>
           )}
         </div>
         {step === FORM_STEPS.length - 1 ? (
-          <p className="mt-3 text-center text-sm leading-normal text-muted-foreground">
-            Após o envio, aguarde o contato da liderança.
+          <p className="mt-3 text-center text-xs leading-normal text-muted-foreground">
+            Ao enviar, seus dados serão encaminhados para a liderança da LATAM 友.
           </p>
         ) : null}
       </div>
