@@ -60,10 +60,10 @@ export function SuccessView({ values, onReset }: SuccessViewProps) {
     ? `https://api.whatsapp.com/send?phone=${leadershipPhone.replace(/\D/g, "")}&text=${encodeURIComponent(message)}`
     : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
 
-  // Gerador de protocolo visual baseado no ID da conta
+  // Protocolo determinístico baseado no ID do jogador (evita erro de hidratação SSR)
   const protocolId = values.idConta
-    ? `LATAM-${values.idConta.slice(-4)}${Math.floor(100 + Math.random() * 900)}`
-    : `LATAM-${Date.now().toString().slice(-6)}`;
+    ? `LATAM-${values.idConta.slice(-6).padStart(6, "0")}`
+    : "LATAM-RECRUTA";
 
   return (
     <section id="formulario" className="mx-auto w-full max-w-xl px-5 pb-20 pt-8">

@@ -40,19 +40,19 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
   const [hydrated, setHydrated] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Estado isolado e explícito de erros por etapa.
+  // Garante 100% que nenhuma etapa receba erros prematuros antes de o usuário clicar em Continuar/Enviar.
+  const [errors, setErrors] = useState<Partial<Record<keyof RecruitmentInput, string>>>({});
+
   const {
     register,
     control,
     setValue,
-    setError,
-    clearErrors,
     watch,
     reset,
-    formState: { errors },
   } = useForm<RecruitmentInput>({
     defaultValues,
     mode: "onSubmit",
-    reValidateMode: "onChange",
     shouldUnregister: false,
   });
 
@@ -68,6 +68,20 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     saveDraft(values);
   }, [hydrated, values]);
 
+  // Sempre que a etapa mudar, zera qualquer erro anterior para garantir tela totalmente limpa
+  useEffect(() => {
+    setErrors({});
+  }, [step]);
+
+  function clearFieldError(field: keyof RecruitmentInput) {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   function onInvalid() {
     requestAnimationFrame(() => {
       const first = document.querySelector("[data-error='true']");
@@ -75,75 +89,74 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     });
   }
 
-  async function goNext() {
+  function goNext() {
     const currentValues = watch();
 
     if (step === 0) {
       const result = step1Schema.safeParse(currentValues);
       if (!result.success) {
-        clearErrors();
+        const newErrs: Partial<Record<keyof RecruitmentInput, string>> = {};
         for (const issue of result.error.issues) {
           const field = issue.path[0] as keyof RecruitmentInput;
-          if (field) {
-            setError(field, { type: "manual", message: issue.message });
+          if (field && !newErrs[field]) {
+            newErrs[field] = issue.message;
           }
         }
+        setErrors(newErrs);
         onInvalid();
         return;
       }
     } else if (step === 1) {
       const result = step2Schema.safeParse(currentValues);
       if (!result.success) {
-        clearErrors();
+        const newErrs: Partial<Record<keyof RecruitmentInput, string>> = {};
         for (const issue of result.error.issues) {
           const field = issue.path[0] as keyof RecruitmentInput;
-          if (field) {
-            setError(field, { type: "manual", message: issue.message });
+          if (field && !newErrs[field]) {
+            newErrs[field] = issue.message;
           }
         }
+        setErrors(newErrs);
         onInvalid();
         return;
       }
     }
 
-    clearErrors();
+    setErrors({});
     playStepSound();
     setStep((current) => Math.min(current + 1, FORM_STEPS.length - 1));
   }
 
   function goBack() {
-    clearErrors();
+    setErrors({});
     playStepSound();
     setStep((current) => Math.max(current - 1, 0));
   }
 
   function jumpToStep(index: number) {
     if (index < step) {
-      clearErrors();
+      setErrors({});
       playStepSound();
       setStep(index);
     }
   }
 
-  async function handleFormSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (step < FORM_STEPS.length - 1) {
-      await goNext();
-      return;
-    }
+  async function handleFinalSubmit(event?: React.SyntheticEvent) {
+    if (event) event.preventDefault();
 
     const currentValues = watch();
 
-    // 1. Valida estritamente os campos do Passo 3
+    // 1. Valida estritamente os campos do Passo 3 (Disponibilidade)
     const step3Result = step3Schema.safeParse(currentValues);
     if (!step3Result.success) {
-      clearErrors();
+      const newErrs: Partial<Record<keyof RecruitmentInput, string>> = {};
       for (const issue of step3Result.error.issues) {
         const field = issue.path[0] as keyof RecruitmentInput;
-        if (field) {
-          setError(field, { type: "manual", message: issue.message });
+        if (field && !newErrs[field]) {
+          newErrs[field] = issue.message;
         }
       }
+      setErrors(newErrs);
       onInvalid();
       return;
     }
@@ -152,16 +165,13 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     const fullResult = recruitmentSchema.safeParse(currentValues);
     if (!fullResult.success) {
       for (const issue of fullResult.error.issues) {
-        const field = issue.path[0] as string;
+        const field = issue.path[0] as keyof RecruitmentInput;
         const stepIdx = FORM_STEPS.findIndex((s) =>
           (s.fields as readonly string[]).includes(field),
         );
         if (stepIdx !== -1) {
           setStep(stepIdx);
-          setError(field as keyof RecruitmentInput, {
-            type: "manual",
-            message: issue.message,
-          });
+          setErrors({ [field]: issue.message });
           break;
         }
       }
@@ -169,7 +179,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
       return;
     }
 
-    clearErrors();
+    setErrors({});
     setIsSubmitting(true);
     try {
       await onSubmitted(fullResult.data);
@@ -186,7 +196,24 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     <form
       id="formulario"
       className="mx-auto flex w-full max-w-xl flex-col gap-5 px-5 pb-20 pt-8"
-      onSubmit={handleFormSubmit}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (step < FORM_STEPS.length - 1) {
+          goNext();
+        } else {
+          void handleFinalSubmit(e);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+          e.preventDefault();
+          if (step < FORM_STEPS.length - 1) {
+            goNext();
+          } else {
+            void handleFinalSubmit(e);
+          }
+        }
+      }}
       noValidate
     >
       <div>
@@ -248,19 +275,17 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
         >
           {step === 0 ? (
             <SectionCard id="dados" eyebrow="01" title="Informações do jogador" icon={Users}>
-              <Field number={1} label="Nome" htmlFor="nome" error={errors.nome?.message}>
+              <Field number={1} label="Nome" htmlFor="nome" error={errors.nome}>
                 <Input
                   id="nome"
                   autoComplete="name"
                   placeholder="Seu nome completo"
                   {...register("nome", {
-                    onChange: () => {
-                      if (errors.nome) clearErrors("nome");
-                    },
+                    onChange: () => clearFieldError("nome"),
                   })}
                 />
               </Field>
-              <Field number={2} label="Idade" htmlFor="idade" error={errors.idade?.message}>
+              <Field number={2} label="Idade" htmlFor="idade" error={errors.idade}>
                 <Input
                   id="idade"
                   inputMode="numeric"
@@ -270,19 +295,17 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     onChange: (event) => {
                       const digits = event.target.value.replace(/\D/g, "").slice(0, 3);
                       setValue("idade", digits, { shouldValidate: false });
-                      if (errors.idade) clearErrors("idade");
+                      clearFieldError("idade");
                     },
                   })}
                 />
               </Field>
-              <Field number={3} label="Nickname no Free Fire" htmlFor="nick" error={errors.nick?.message}>
+              <Field number={3} label="Nickname no Free Fire" htmlFor="nick" error={errors.nick}>
                 <Input
                   id="nick"
                   placeholder="Seu nick exato no jogo"
                   {...register("nick", {
-                    onChange: () => {
-                      if (errors.nick) clearErrors("nick");
-                    },
+                    onChange: () => clearFieldError("nick"),
                   })}
                 />
               </Field>
@@ -290,7 +313,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 number={4}
                 label="ID da conta"
                 htmlFor="idConta"
-                error={errors.idConta?.message}
+                error={errors.idConta}
               >
                 <div className="relative">
                   <Input
@@ -302,7 +325,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       onChange: (event) => {
                         const digits = maskPlayerId(event.target.value);
                         setValue("idConta", digits, { shouldValidate: false });
-                        if (errors.idConta) clearErrors("idConta");
+                        clearFieldError("idConta");
                       },
                     })}
                   />
@@ -318,19 +341,17 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 number={5}
                 label="Cidade / Estado"
                 htmlFor="cidadeEstado"
-                error={errors.cidadeEstado?.message}
+                error={errors.cidadeEstado}
               >
                 <Input
                   id="cidadeEstado"
                   placeholder="Ex: São Paulo - SP"
                   {...register("cidadeEstado", {
-                    onChange: () => {
-                      if (errors.cidadeEstado) clearErrors("cidadeEstado");
-                    },
+                    onChange: () => clearFieldError("cidadeEstado"),
                   })}
                 />
               </Field>
-              <Field number={6} label="WhatsApp (com DDD)" htmlFor="whatsapp" error={errors.whatsapp?.message}>
+              <Field number={6} label="WhatsApp (com DDD)" htmlFor="whatsapp" error={errors.whatsapp}>
                 <Input
                   id="whatsapp"
                   type="tel"
@@ -341,7 +362,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     onChange: (event) => {
                       const masked = maskPhone(event.target.value);
                       setValue("whatsapp", masked, { shouldValidate: false });
-                      if (errors.whatsapp) clearErrors("whatsapp");
+                      clearFieldError("whatsapp");
                     },
                   })}
                 />
@@ -355,7 +376,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 number={7}
                 label="Qual sua principal função?"
                 htmlFor="funcao"
-                error={errors.funcao?.message}
+                error={errors.funcao}
               >
                 <Controller
                   name="funcao"
@@ -366,7 +387,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       value={field.value}
                       onChange={(val) => {
                         field.onChange(val);
-                        if (errors.funcao) clearErrors("funcao");
+                        clearFieldError("funcao");
                       }}
                       options={FUNCOES}
                     />
@@ -377,7 +398,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 number={8}
                 label="Qual sua patente atual?"
                 htmlFor="patenteAtual"
-                error={errors.patenteAtual?.message}
+                error={errors.patenteAtual}
               >
                 <Controller
                   name="patenteAtual"
@@ -388,7 +409,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       value={field.value}
                       onChange={(val) => {
                         field.onChange(val);
-                        if (errors.patenteAtual) clearErrors("patenteAtual");
+                        clearFieldError("patenteAtual");
                       }}
                       options={PATENTES_LATAM}
                     />
@@ -398,7 +419,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
               <Field
                 number={9}
                 label="Já teve experiência em competitivo, guildas ou campeonatos?"
-                error={errors.experienciaCompetitiva?.message}
+                error={errors.experienciaCompetitiva}
               >
                 <Controller
                   name="experienciaCompetitiva"
@@ -409,7 +430,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       value={field.value}
                       onChange={(val) => {
                         field.onChange(val);
-                        if (errors.experienciaCompetitiva) clearErrors("experienciaCompetitiva");
+                        clearFieldError("experienciaCompetitiva");
                       }}
                       options={SIM_NAO}
                       columns="stack"
@@ -431,7 +452,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       number={10}
                       label="Conte brevemente sua experiência competitiva"
                       htmlFor="experienciaDescricao"
-                      error={errors.experienciaDescricao?.message}
+                      error={errors.experienciaDescricao}
                     >
                       <Textarea
                         id="experienciaDescricao"
@@ -439,9 +460,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                         maxLength={800}
                         placeholder="Campeonatos disputados, guildas anteriores, line-ups, funções..."
                         {...register("experienciaDescricao", {
-                          onChange: () => {
-                            if (errors.experienciaDescricao) clearErrors("experienciaDescricao");
-                          },
+                          onChange: () => clearFieldError("experienciaDescricao"),
                         })}
                       />
                       <div className="flex justify-end mt-1">
@@ -461,7 +480,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
               <Field
                 number={11}
                 label="Quanto tempo você costuma ficar disponível para jogar por dia?"
-                error={errors.tempoDisponivel?.message}
+                error={errors.tempoDisponivel}
               >
                 <Controller
                   name="tempoDisponivel"
@@ -472,7 +491,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       value={field.value}
                       onChange={(val) => {
                         field.onChange(val);
-                        if (errors.tempoDisponivel) clearErrors("tempoDisponivel");
+                        clearFieldError("tempoDisponivel");
                       }}
                       options={HORAS_DISPONIBILIDADE}
                       columns="stack"
@@ -484,15 +503,13 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 number={12}
                 label="Qual seu horário normalmente disponível para jogar?"
                 htmlFor="horarioDisponivel"
-                error={errors.horarioDisponivel?.message}
+                error={errors.horarioDisponivel}
               >
                 <Input
                   id="horarioDisponivel"
                   placeholder="Ex: 19h às 23h (Treinos e Ranqueadas)"
                   {...register("horarioDisponivel", {
-                    onChange: () => {
-                      if (errors.horarioDisponivel) clearErrors("horarioDisponivel");
-                    },
+                    onChange: () => clearFieldError("horarioDisponivel"),
                   })}
                 />
               </Field>
@@ -518,12 +535,25 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
           ) : null}
 
           {step < FORM_STEPS.length - 1 ? (
-            <Button type="button" size="lg" className="w-full flex-1" onClick={goNext}>
+            <Button
+              key="btn-continuar-passo"
+              type="button"
+              size="lg"
+              className="w-full flex-1"
+              onClick={goNext}
+            >
               Continuar
               <ArrowRight className="size-4" />
             </Button>
           ) : (
-            <Button type="submit" size="lg" className="w-full flex-1" disabled={isSubmitting}>
+            <Button
+              key="btn-enviar-candidatura"
+              type="button"
+              size="lg"
+              className="w-full flex-1"
+              disabled={isSubmitting}
+              onClick={handleFinalSubmit}
+            >
               {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
               {isSubmitting ? "Enviando para a liderança..." : "Enviar candidatura"}
             </Button>

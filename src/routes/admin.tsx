@@ -1,48 +1,33 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Check,
   CheckCircle2,
   Clock,
   Copy,
-  Crown,
   Download,
   ExternalLink,
   Eye,
   EyeOff,
-  Flame,
   KeyRound,
   Lock,
   LogOut,
-  MapPin,
-  Medal,
   MessageCircle,
-  Pencil,
-  Plus,
-  RotateCcw,
   Search,
-  Share2,
-  Shield,
-  ShieldAlert,
   ShieldCheck,
-  Sparkles,
   Swords,
   Trash2,
   Trophy,
-  UserCheck,
   UserPlus,
   Users,
   Volume2,
   VolumeX,
   X,
   XCircle,
-  Zap,
 } from "lucide-react";
-import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TiltCard } from "@/components/ui/tilt-card";
 import { formatWhatsAppUrl, maskPhone, maskPlayerId } from "@/lib/masks";
 import {
   displayValue,
@@ -65,6 +50,8 @@ import {
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
 
+// ─── Types ───────────────────────────────────────────────────────────────────
+
 type StoredCandidate = RecruitmentValues & {
   id: string;
   submittedAt?: string;
@@ -72,7 +59,43 @@ type StoredCandidate = RecruitmentValues & {
   staffNote?: string;
 };
 
-const INITIAL_DEMO_CANDIDATES: StoredCandidate[] = [
+type FilterStatus = "todos" | "pendente" | "aprovado" | "recusado";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const VALID_KEYS = [
+  "DMgKVB@FkbL#!fJ",
+  "LATAM#Elite2026!Staff",
+  "latam2026",
+  "souza2026",
+  "adminlatam",
+  "souza",
+  "admin",
+];
+const STORAGE_KEY = "latam-admin-candidates";
+const AUTH_KEY = "latam-admin-auth";
+const AUTH_EXP_KEY = "latam-admin-auth-exp";
+const SESSION_TTL = 2 * 60 * 60 * 1000; // 2 horas
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 60;
+const LINEUP_SLOTS = 12;
+
+function isSessionValid(): boolean {
+  try {
+    const isAuthed = sessionStorage.getItem(AUTH_KEY) === "true";
+    const exp = Number(sessionStorage.getItem(AUTH_EXP_KEY) || 0);
+    if (isAuthed && exp && Date.now() < exp) {
+      return true;
+    }
+    sessionStorage.removeItem(AUTH_KEY);
+    sessionStorage.removeItem(AUTH_EXP_KEY);
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+const DEMO: StoredCandidate[] = [
   {
     id: "cand-101",
     nome: "Lucas Souza",
@@ -84,12 +107,13 @@ const INITIAL_DEMO_CANDIDATES: StoredCandidate[] = [
     funcao: "rush",
     patenteAtual: "diamente_mestre",
     experienciaCompetitiva: "sim",
-    experienciaDescricao: "Joguei camps diários pela guilda Black Dragons, foco em invasão rápida e 2v1.",
+    experienciaDescricao:
+      "Joguei camps diários pela guilda Black Dragons, foco em invasão rápida e 2v1.",
     tempoDisponivel: "4+h",
     horarioDisponivel: "19h às 00h",
     submittedAt: "Hoje, 19:42",
     status: "aprovado",
-    staffNote: "Aprovado para o teste da Line 1. Call rápida e boa mira.",
+    staffNote: "Aprovado para Line 1.",
   },
   {
     id: "cand-102",
@@ -102,12 +126,13 @@ const INITIAL_DEMO_CANDIDATES: StoredCandidate[] = [
     funcao: "granadeiro",
     patenteAtual: "elite",
     experienciaCompetitiva: "sim",
-    experienciaDescricao: "Granadeiro com boa leitura de mapa e controle de gel. Participei da Copa FF amadora.",
+    experienciaDescricao:
+      "Granadeiro com boa leitura de mapa e controle de gel. Participei da Copa FF amadora.",
     tempoDisponivel: "2-4h",
     horarioDisponivel: "20h às 23h30",
     submittedAt: "Hoje, 18:15",
     status: "pendente",
-    staffNote: "Agendar teste em sala personalizada 4v4.",
+    staffNote: "",
   },
   {
     id: "cand-103",
@@ -129,1263 +154,1302 @@ const INITIAL_DEMO_CANDIDATES: StoredCandidate[] = [
   },
 ];
 
-function getRankBadgeInfo(patente: string) {
-  switch (patente) {
-    case "elite":
-      return {
-        label: "Elite+",
-        color: "from-amber-400 via-purple-500 to-indigo-500 text-amber-200 border-amber-400/40 shadow-[0_0_12px_rgba(245,158,11,0.3)]",
-        icon: Crown,
-      };
-    case "diamente_mestre":
-      return {
-        label: "Diamante–Mestre",
-        color: "from-rose-500 to-red-600 text-rose-100 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.3)]",
-        icon: Flame,
-      };
-    case "platina_diamente":
-      return {
-        label: "Platina–Diamante",
-        color: "from-cyan-400 to-blue-600 text-cyan-100 border-cyan-400/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]",
-        icon: Sparkles,
-      };
-    case "ouro_platina":
-      return {
-        label: "Ouro–Platina",
-        color: "from-yellow-400 to-amber-600 text-yellow-100 border-yellow-400/40 shadow-[0_0_12px_rgba(234,179,8,0.3)]",
-        icon: Medal,
-      };
-    default:
-      return {
-        label: "Casual / Outra",
-        color: "from-slate-400 to-zinc-600 text-slate-200 border-slate-400/30",
-        icon: Shield,
-      };
+// ─── Color Maps ───────────────────────────────────────────────────────────────
+
+const FUNCAO_COLORS: Record<string, string> = {
+  rush: "text-red-400 bg-red-500/10 border border-red-500/20",
+  suporte: "text-cyan-400 bg-cyan-500/10 border border-cyan-500/20",
+  fuzileiro: "text-purple-400 bg-purple-500/10 border border-purple-500/20",
+  granadeiro: "text-amber-400 bg-amber-500/10 border border-amber-500/20",
+  full_gas: "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20",
+  cura: "text-green-400 bg-green-500/10 border border-green-500/20",
+  flexivel: "text-blue-400 bg-blue-500/10 border border-blue-500/20",
+};
+
+const PATENTE_COLORS: Record<string, string> = {
+  elite: "text-amber-300",
+  diamente_mestre: "text-rose-400",
+  platina_diamente: "text-cyan-400",
+  ouro_platina: "text-yellow-400",
+  outra: "text-slate-400",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function labelOf(
+  options: readonly { value: string; label: string }[],
+  value: string,
+): string {
+  return options.find((o) => o.value === value)?.label ?? value;
+}
+
+function formatFicha(c: StoredCandidate): string {
+  return [
+    `*${GUILD_NAME}${GUILD_MARK} — Candidatura*`,
+    "",
+    `*Nick:* ${c.nick}`,
+    `*Nome:* ${c.nome}, ${c.idade} anos`,
+    `*Cidade:* ${c.cidadeEstado}`,
+    `*WhatsApp:* ${c.whatsapp}`,
+    `*ID da conta:* ${c.idConta}`,
+    "",
+    `*Função:* ${labelOf(FUNCOES, c.funcao)}`,
+    `*Patente:* ${labelOf(PATENTES_LATAM, c.patenteAtual)}`,
+    `*Exp. Competitiva:* ${labelOf(SIM_NAO, c.experienciaCompetitiva)}`,
+    c.experienciaDescricao ? `*Histórico:* ${c.experienciaDescricao}` : "",
+    "",
+    `*Disponibilidade:* ${labelOf(HORAS_DISPONIBILIDADE, c.tempoDisponivel)}`,
+    `*Horário:* ${c.horarioDisponivel}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function loadCandidates(): StoredCandidate[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEMO;
+    const parsed = JSON.parse(raw) as StoredCandidate[];
+    return parsed.length ? parsed : DEMO;
+  } catch {
+    return DEMO;
   }
 }
 
-function getRoleBadgeInfo(funcao: string) {
-  const item = FUNCOES.find((f) => f.value === funcao);
-  const label = item?.label || funcao;
-  const badge = item?.badge || "Tático";
-
-  switch (funcao) {
-    case "rush":
-      return { label, badge, color: "bg-red-500/15 text-red-300 border-red-500/30", icon: Swords };
-    case "suporte":
-      return { label, badge, color: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30", icon: ShieldCheck };
-    case "fuzileiro":
-      return { label, badge, color: "bg-purple-500/15 text-purple-300 border-purple-500/30", icon: Zap };
-    case "granadeiro":
-      return { label, badge, color: "bg-amber-500/15 text-amber-300 border-amber-500/30", icon: Flame };
-    case "full_gas":
-      return { label, badge, color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", icon: ShieldAlert };
-    default:
-      return { label, badge, color: "bg-blue-500/15 text-blue-300 border-blue-500/30", icon: Trophy };
+function saveCandidates(list: StoredCandidate[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore */
   }
 }
 
-function AdminPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [shake, setShake] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [isLocked, setIsLocked] = useState(false);
-  const [soundMuted, setSoundMuted] = useState(false);
+// ─── WA Message Templates ─────────────────────────────────────────────────────
 
-  // Lista de candidatos e filtros
-  const [candidates, setCandidates] = useState<StoredCandidate[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"todos" | "pendente" | "aprovado" | "recusado">("todos");
-  const [filterFuncao, setFilterFuncao] = useState<string>("todos");
-  const [sortBy, setSortBy] = useState<"recentes" | "patente" | "tempo">("recentes");
+function getWaTemplates(nick: string) {
+  return [
+    {
+      id: "convocacao",
+      icon: "⚔️",
+      label: "Convocação para Teste de Line-up",
+      preview: `Opa ${nick}! Vi sua candidatura na LATAM 友 e quero te convocar para um teste de line-up. Vamos marcar? ⚔️`,
+      approvesPlayer: false,
+    },
+    {
+      id: "entrevista",
+      icon: "🎙️",
+      label: "Entrevista & Alinhamento",
+      preview: `Salve ${nick}! Tô de olho na sua ficha. Bora trocar uma ideia rápida antes do teste? 🎙️`,
+      approvesPlayer: false,
+    },
+    {
+      id: "aprovacao",
+      icon: "🏆",
+      label: "Aprovação Oficial",
+      preview: `${nick}, você foi aprovado(a) oficialmente na guilda LATAM 友! Seja bem-vindo(a) ao time. 🏆🔥`,
+      approvesPlayer: true,
+    },
+  ];
+}
 
-  // Modal para adicionar candidato manualmente
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newPlayer, setNewPlayer] = useState({
-    nome: "",
-    idade: "",
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status?: StoredCandidate["status"] }) {
+  if (status === "aprovado")
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+        <span className="size-1.5 rounded-full bg-emerald-400" />
+        Aprovado p/ Teste
+      </span>
+    );
+  if (status === "recusado")
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-400">
+        <span className="size-1.5 rounded-full bg-red-400" />
+        Recusado
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400">
+      <span className="size-1.5 animate-pulse rounded-full bg-amber-400" />
+      Em Análise
+    </span>
+  );
+}
+
+// ─── Whatsapp Modal ───────────────────────────────────────────────────────────
+
+function WhatsAppModal({
+  candidate,
+  onClose,
+  onApprove,
+}: {
+  candidate: StoredCandidate;
+  onClose: () => void;
+  onApprove: () => void;
+}) {
+  const templates = getWaTemplates(candidate.nick);
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* Backdrop */}
+      <motion.div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-[#0e131b] p-6 shadow-2xl"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+      >
+        <div className="mb-5 flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-accent">
+              Whatsapp
+            </p>
+            <h3 className="font-display text-2xl text-silver">
+              Escolher Mensagem
+            </h3>
+            <p className="text-sm text-subtle">
+              Jogador:{" "}
+              <span className="font-mono text-foreground">{candidate.nick}</span>
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {templates.map((tpl) => {
+            const url = formatWhatsAppUrl(candidate.whatsapp, tpl.preview);
+            return (
+              <a
+                key={tpl.id}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  if (tpl.approvesPlayer) {
+                    playApproveSound();
+                    onApprove();
+                  } else {
+                    playClickSound();
+                  }
+                  onClose();
+                }}
+                className="group flex items-start gap-4 rounded-xl border border-white/8 bg-[#121821] p-4 transition-all hover:border-accent/30 hover:bg-accent/5"
+              >
+                <span className="text-2xl">{tpl.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="mb-1 text-sm font-semibold text-silver group-hover:text-accent transition-colors">
+                    {tpl.label}
+                  </p>
+                  <p className="text-xs text-subtle leading-relaxed line-clamp-2">
+                    {tpl.preview}
+                  </p>
+                </div>
+                <ExternalLink
+                  size={14}
+                  className="mt-0.5 shrink-0 text-subtle group-hover:text-accent transition-colors"
+                />
+              </a>
+            );
+          })}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Add Player Modal ─────────────────────────────────────────────────────────
+
+function AddPlayerModal({
+  onClose,
+  onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (c: StoredCandidate) => void;
+}) {
+  const [form, setForm] = useState({
     nick: "",
     idConta: "",
-    cidadeEstado: "",
+    nome: "",
     whatsapp: "",
-    funcao: "rush",
-    patenteAtual: "diamente_mestre",
-    experienciaCompetitiva: "sim",
-    experienciaDescricao: "",
-    tempoDisponivel: "2-4h",
-    horarioDisponivel: "19h às 23h",
+    funcao: "",
+    patenteAtual: "",
+    horarioDisponivel: "",
     staffNote: "",
   });
 
-  // Modal de modelos de mensagem do WhatsApp
-  const [activeWhatsModal, setActiveWhatsModal] = useState<StoredCandidate | null>(null);
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.nick.trim() || !form.idConta.trim() || !form.whatsapp.trim()) {
+      toast.error("Preencha os campos obrigatórios.");
+      return;
+    }
+    const candidate: StoredCandidate = {
+      id: `cand-${Date.now()}`,
+      nick: form.nick.trim(),
+      idConta: form.idConta.trim(),
+      nome: form.nome.trim(),
+      whatsapp: form.whatsapp.trim(),
+      funcao: form.funcao,
+      patenteAtual: form.patenteAtual,
+      idade: "",
+      cidadeEstado: "",
+      experienciaCompetitiva: "nao",
+      experienciaDescricao: "",
+      tempoDisponivel: "",
+      horarioDisponivel: form.horarioDisponivel.trim(),
+      submittedAt: new Date().toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: "pendente",
+      staffNote: form.staffNote.trim(),
+    };
+    playApproveSound();
+    onAdd(candidate);
+    toast.success(`${candidate.nick} adicionado à lista.`);
+    onClose();
+  }
 
-  // Anotações em edição inline
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState("");
+  const fieldClass =
+    "w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none";
+  const labelClass = "block text-xs text-subtle mb-1";
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-[#0e131b] p-6 shadow-2xl"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+      >
+        <div className="mb-5 flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-accent">
+              Candidatos
+            </p>
+            <h3 className="font-display text-2xl text-silver">+ Novo Jogador</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>
+                Nick <span className="text-red-400">*</span>
+              </label>
+              <input
+                className={fieldClass}
+                placeholder="NICK_FF"
+                value={form.nick}
+                onChange={(e) => setForm((f) => ({ ...f, nick: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                ID da Conta <span className="text-red-400">*</span>
+              </label>
+              <input
+                className={fieldClass}
+                placeholder="123456789"
+                value={form.idConta}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, idConta: maskPlayerId(e.target.value) }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Nome</label>
+              <input
+                className={fieldClass}
+                placeholder="Nome completo"
+                value={form.nome}
+                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>
+                WhatsApp <span className="text-red-400">*</span>
+              </label>
+              <input
+                className={fieldClass}
+                placeholder="(11) 9xxxx-xxxx"
+                value={form.whatsapp}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, whatsapp: maskPhone(e.target.value) }))
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Função</label>
+              <select
+                className={fieldClass}
+                value={form.funcao}
+                onChange={(e) => setForm((f) => ({ ...f, funcao: e.target.value }))}
+              >
+                <option value="">Selecionar...</option>
+                {FUNCOES.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Patente</label>
+              <select
+                className={fieldClass}
+                value={form.patenteAtual}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, patenteAtual: e.target.value }))
+                }
+              >
+                <option value="">Selecionar...</option>
+                {PATENTES_LATAM.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>Horário Disponível</label>
+            <input
+              className={fieldClass}
+              placeholder="Ex: 19h às 23h"
+              value={form.horarioDisponivel}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, horarioDisponivel: e.target.value }))
+              }
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Nota Staff</label>
+            <textarea
+              className={`${fieldClass} resize-none`}
+              rows={2}
+              placeholder="Observações internas..."
+              value={form.staffNote}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, staffNote: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              className="flex-1 border border-white/10"
+              onClick={onClose}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1 gap-2">
+              <UserPlus size={15} />
+              Adicionar
+            </Button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Candidate Card ───────────────────────────────────────────────────────────
+
+function CandidateCard({
+  candidate,
+  onStatusChange,
+  onDelete,
+  onNoteChange,
+  onWaClick,
+}: {
+  candidate: StoredCandidate;
+  onStatusChange: (id: string, status: StoredCandidate["status"]) => void;
+  onDelete: (id: string) => void;
+  onNoteChange: (id: string, note: string) => void;
+  onWaClick: (c: StoredCandidate) => void;
+}) {
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteText, setNoteText] = useState(candidate.staffNote ?? "");
+  const [copied, setCopied] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    setSoundMuted(isSoundMuted());
-    if (sessionStorage.getItem("latam-admin-auth") === "true") {
-      setIsAuthenticated(true);
-    }
+    if (editingNote) noteRef.current?.focus();
+  }, [editingNote]);
 
-    try {
-      const stored = localStorage.getItem("latam-admin-candidates");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setCandidates(parsed);
-          return;
-        }
-      }
-      setCandidates(INITIAL_DEMO_CANDIDATES);
-      localStorage.setItem("latam-admin-candidates", JSON.stringify(INITIAL_DEMO_CANDIDATES));
-    } catch {
-      setCandidates(INITIAL_DEMO_CANDIDATES);
-    }
-  }, []);
-
-  function handleSoundToggle() {
-    const muted = toggleSound();
-    setSoundMuted(muted);
-    toast.info(muted ? "Efeitos sonoros desativados" : "Efeitos sonoros ativados");
+  function copyId() {
+    void navigator.clipboard.writeText(candidate.idConta);
+    setCopied(true);
+    toast.info("ID copiado!");
+    setTimeout(() => setCopied(false), 2000);
   }
 
-  function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    if (isLocked) {
-      playDenySound();
-      toast.error("Acesso bloqueado temporariamente por segurança. Aguarde 60 segundos.");
-      return;
-    }
-
-    const pass = passwordInput.trim().toLowerCase();
-    if (!pass) {
-      playDenySound();
-      toast.error("Informe a chave de segurança.");
-      return;
-    }
-
-    const VALID_KEYS = ["latam2026", "souza2026", "adminlatam", "souza", "admin"];
-    if (VALID_KEYS.includes(pass)) {
-      playSuccessSound();
-      sessionStorage.setItem("latam-admin-auth", "true");
-      setIsAuthenticated(true);
-      setFailedAttempts(0);
-      toast.success("Credencial confirmada! Bem-vindo à liderança LATAM 友.");
-    } else {
-      playDenySound();
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-
-      const next = failedAttempts + 1;
-      setFailedAttempts(next);
-      if (next >= 5) {
-        setIsLocked(true);
-        toast.error("5 tentativas incorretas. Terminal bloqueado por 60 segundos.");
-        setTimeout(() => {
-          setIsLocked(false);
-          setFailedAttempts(0);
-        }, 60000);
-      } else {
-        toast.error(`Chave incorreta. Tentativa ${next} de 5.`);
-      }
-    }
-  }
-
-  function handleLogout() {
+  function copyFicha() {
     playClickSound();
-    sessionStorage.removeItem("latam-admin-auth");
-    setIsAuthenticated(false);
-    toast.info("Sessão da liderança encerrada.");
+    void navigator.clipboard.writeText(formatFicha(candidate));
+    toast.success("Ficha copiada!");
   }
 
-  function persistCandidates(updated: StoredCandidate[]) {
-    setCandidates(updated);
-    try {
-      localStorage.setItem("latam-admin-candidates", JSON.stringify(updated));
-    } catch {
-      /* ignore */
+  function saveNote() {
+    onNoteChange(candidate.id, noteText);
+    setEditingNote(false);
+    toast.success("Nota salva.");
+  }
+
+  const funcaoColor =
+    FUNCAO_COLORS[candidate.funcao] ??
+    "text-slate-400 bg-slate-500/10 border border-slate-500/20";
+  const patenteColor = PATENTE_COLORS[candidate.patenteAtual] ?? "text-slate-400";
+
+  return (
+    <div className="rounded-xl border border-white/8 bg-[#0e131b] p-5 transition-all hover:border-white/12">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        {/* ── Left ── */}
+        <div className="flex-1 min-w-0">
+          {/* Header row */}
+          <div className="mb-3 flex flex-wrap items-start gap-3">
+            {/* Avatar + Name */}
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/10 border border-accent/20">
+                <Users size={16} className="text-accent" />
+              </div>
+              <div>
+                <p className="font-display text-xl leading-none text-silver">
+                  {candidate.nick}
+                </p>
+                <p className="mt-0.5 text-xs text-subtle">
+                  {candidate.nome || "—"}
+                  {candidate.idade ? `, ${candidate.idade} anos` : ""}
+                </p>
+              </div>
+            </div>
+            <StatusBadge status={candidate.status} />
+          </div>
+
+          {/* Meta */}
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-subtle">
+            {candidate.cidadeEstado && (
+              <span>{candidate.cidadeEstado}</span>
+            )}
+            {candidate.cidadeEstado && candidate.submittedAt && (
+              <span className="text-white/20">·</span>
+            )}
+            {candidate.submittedAt && <span>{candidate.submittedAt}</span>}
+          </div>
+
+          {/* Chips */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {candidate.funcao && (
+              <span
+                className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${funcaoColor}`}
+              >
+                {labelOf(FUNCOES, candidate.funcao)}
+              </span>
+            )}
+            {candidate.patenteAtual && (
+              <span
+                className={`inline-flex items-center rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium ${patenteColor}`}
+              >
+                {labelOf(PATENTES_LATAM, candidate.patenteAtual)}
+              </span>
+            )}
+            {candidate.idConta && (
+              <button
+                onClick={copyId}
+                className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-xs text-subtle transition-colors hover:border-accent/30 hover:text-accent"
+              >
+                {copied ? (
+                  <span className="text-emerald-400">Copiado!</span>
+                ) : (
+                  <>
+                    {candidate.idConta}
+                    <Copy size={10} />
+                  </>
+                )}
+              </button>
+            )}
+            {candidate.horarioDisponivel && (
+              <span className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-subtle">
+                {candidate.horarioDisponivel}
+              </span>
+            )}
+          </div>
+
+          {/* Historical Experience */}
+          {candidate.experienciaCompetitiva === "sim" &&
+            candidate.experienciaDescricao && (
+              <div className="mb-3 rounded-lg border border-white/6 bg-[#121821] px-3 py-2.5">
+                <p className="mb-1 text-[10px] uppercase tracking-widest text-accent">
+                  Histórico Competitivo
+                </p>
+                <p className="text-xs text-muted leading-relaxed">
+                  {candidate.experienciaDescricao}
+                </p>
+              </div>
+            )}
+
+          {/* Staff Note */}
+          {editingNote ? (
+            <div className="space-y-2">
+              <textarea
+                ref={noteRef}
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={2}
+                className="w-full resize-none rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-foreground placeholder:text-subtle focus:outline-none"
+                placeholder="Nota interna do staff..."
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={saveNote}
+                  className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground"
+                >
+                  Salvar
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingNote(false);
+                    setNoteText(candidate.staffNote ?? "");
+                  }}
+                  className="rounded-md border border-white/10 px-3 py-1 text-xs text-subtle hover:text-foreground"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : candidate.staffNote ? (
+            <div
+              className="cursor-pointer rounded-lg border border-accent/15 bg-accent/5 px-3 py-2.5 transition-all hover:border-accent/25"
+              onClick={() => setEditingNote(true)}
+            >
+              <p className="mb-1 text-[10px] uppercase tracking-widest text-accent">
+                Nota Staff
+              </p>
+              <p className="text-xs text-silver leading-relaxed">
+                {candidate.staffNote}
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingNote(true)}
+              className="text-xs text-subtle underline-offset-2 hover:text-accent hover:underline transition-colors"
+            >
+              + Nota Staff
+            </button>
+          )}
+        </div>
+
+        {/* ── Right ── */}
+        <div className="flex shrink-0 flex-row flex-wrap gap-2 sm:flex-col sm:items-stretch">
+          <Button
+            className="gap-2 border-emerald-500/30 bg-emerald-500/10 py-2 text-sm text-emerald-400 hover:bg-emerald-500/20"
+            variant="ghost"
+            onClick={() => onWaClick(candidate)}
+          >
+            <MessageCircle size={14} />
+            Chamar no Zap
+          </Button>
+          <Button
+            variant="ghost"
+            className="gap-2 border border-white/10 py-2 text-sm text-subtle hover:text-foreground"
+            onClick={copyFicha}
+          >
+            <Copy size={14} />
+            Copiar Ficha
+          </Button>
+
+          {/* Status Actions */}
+          <div className="flex items-center justify-between gap-1 rounded-lg border border-white/8 bg-[#121821] px-2 py-1.5">
+            <button
+              title="Aprovar"
+              onClick={() => {
+                playApproveSound();
+                onStatusChange(candidate.id, "aprovado");
+              }}
+              className={`rounded-md p-1.5 transition-colors ${
+                candidate.status === "aprovado"
+                  ? "text-emerald-400"
+                  : "text-subtle hover:text-emerald-400"
+              }`}
+            >
+              <CheckCircle2 size={15} />
+            </button>
+            <button
+              title="Em Análise"
+              onClick={() => {
+                playClickSound();
+                onStatusChange(candidate.id, "pendente");
+              }}
+              className={`rounded-md p-1.5 transition-colors ${
+                candidate.status === "pendente"
+                  ? "text-amber-400"
+                  : "text-subtle hover:text-amber-400"
+              }`}
+            >
+              <Clock size={15} />
+            </button>
+            <button
+              title="Recusar"
+              onClick={() => {
+                playDenySound();
+                onStatusChange(candidate.id, "recusado");
+              }}
+              className={`rounded-md p-1.5 transition-colors ${
+                candidate.status === "recusado"
+                  ? "text-red-400"
+                  : "text-subtle hover:text-red-400"
+              }`}
+            >
+              <XCircle size={15} />
+            </button>
+            <span className="h-3 w-px bg-white/10" />
+            <button
+              title="Excluir"
+              onClick={() => {
+                playDenySound();
+                onDelete(candidate.id);
+              }}
+              className="rounded-md p-1.5 text-subtle transition-colors hover:text-red-400"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Login Screen ─────────────────────────────────────────────────────────────
+
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [shaking, setShaking] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cyber grid background
+  const gridStyle: React.CSSProperties = {
+    backgroundImage: `
+      linear-gradient(rgba(0,180,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,180,255,0.04) 1px, transparent 1px)
+    `,
+    backgroundSize: "48px 48px",
+  };
+
+  function startLockout() {
+    setLocked(true);
+    setCountdown(LOCKOUT_SECONDS);
+    timerRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(timerRef.current!);
+          setLocked(false);
+          setAttempts(0);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+  }
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (locked) return;
+
+    if (VALID_KEYS.includes(password.trim())) {
+      playSuccessSound();
+      try {
+        sessionStorage.setItem(AUTH_KEY, "true");
+        sessionStorage.setItem(AUTH_EXP_KEY, String(Date.now() + SESSION_TTL));
+      } catch {
+        /* ignore */
+      }
+      onLogin();
+      toast.success("Acesso autorizado. Bem-vindo ao Painel.");
+    } else {
+      playDenySound();
+      const next = attempts + 1;
+      setAttempts(next);
+      setPassword("");
+      setShaking(true);
+      setTimeout(() => setShaking(false), 500);
+
+      if (next >= MAX_ATTEMPTS) {
+        startLockout();
+        toast.error("Muitas tentativas. Acesso bloqueado por 60 segundos.");
+      } else {
+        toast.error(`Senha incorreta. ${MAX_ATTEMPTS - next} tentativa(s) restante(s).`);
+      }
     }
   }
 
-  function updateStatus(id: string, newStatus: "pendente" | "aprovado" | "recusado") {
-    if (newStatus === "aprovado") {
+  return (
+    <div
+      className="min-h-screen page-bg flex flex-col"
+      style={gridStyle}
+    >
+      {/* Header */}
+      <header className="flex items-center justify-between border-b border-white/8 px-6 py-4">
+        <div className="flex items-center gap-2">
+          <img src="/latam-mark.webp" alt={`${GUILD_NAME}${GUILD_MARK}`} className="h-7 w-auto" />
+          <span className="font-display text-xl text-silver">
+            {GUILD_NAME}{" "}
+            <span className="text-accent">{GUILD_MARK}</span>
+          </span>
+        </div>
+        <Link
+          to="/"
+          className="flex items-center gap-1.5 text-sm text-subtle transition-colors hover:text-foreground"
+        >
+          ← Voltar ao Site
+        </Link>
+      </header>
+
+      {/* Center */}
+      <div className="flex flex-1 items-center justify-center px-4 py-16">
+        <div className="w-full max-w-sm">
+          {/* Logo glow */}
+          <div className="mb-8 flex justify-center">
+            <div className="relative">
+              <div
+                className="absolute inset-0 rounded-full blur-2xl"
+                style={{ background: "radial-gradient(circle, rgba(0,180,255,0.35) 0%, transparent 70%)" }}
+              />
+              <img
+                src="/latam-mark.webp"
+                alt={`${GUILD_NAME}${GUILD_MARK}`}
+                className="relative h-20 w-auto drop-shadow-lg"
+              />
+            </div>
+          </div>
+
+          {/* Labels */}
+          <div className="mb-6 text-center">
+            <p className="mb-2 text-xs uppercase tracking-widest text-accent">
+              Acesso Restrito
+            </p>
+            <h1 className="font-display text-4xl text-silver leading-none mb-2">
+              Painel da Liderança
+            </h1>
+            <p className="text-sm text-subtle leading-relaxed">
+              Acesso exclusivo para líderes e recrutadores da guilda{" "}
+              <span className="text-foreground">
+                {GUILD_NAME} {GUILD_MARK}
+              </span>
+              .
+            </p>
+          </div>
+
+          {/* Form */}
+          <motion.form
+            onSubmit={handleSubmit}
+            animate={shaking ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="space-y-4"
+          >
+            {/* Password field */}
+            <div className="relative">
+              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle">
+                <KeyRound size={15} />
+              </div>
+              <input
+                type={showPw ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={locked}
+                placeholder="••••••••••"
+                className="w-full rounded-xl border border-white/10 bg-[#121821] py-3 pl-10 pr-10 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-subtle transition-colors hover:text-foreground"
+                tabIndex={-1}
+              >
+                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+
+            {/* Lockout countdown */}
+            {locked && (
+              <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-center">
+                <p className="text-xs text-red-400">
+                  Acesso bloqueado. Aguarde{" "}
+                  <span className="font-mono font-bold">{countdown}s</span>
+                </p>
+              </div>
+            )}
+
+            {/* Submit */}
+            <Button
+              type="submit"
+              className="w-full gap-2"
+              disabled={locked || !password}
+            >
+              <ShieldCheck size={15} />
+              Entrar no Painel
+            </Button>
+          </motion.form>
+
+          {/* Footer note */}
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-subtle">
+            <Lock size={11} />
+            <span>Sistema seguro · Acesso monitorado</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+function Dashboard({ onLogout }: { onLogout: () => void }) {
+  const [candidates, setCandidates] = useState<StoredCandidate[]>(loadCandidates);
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>("todos");
+  const [search, setSearch] = useState("");
+  const [funcaoFilter, setFuncaoFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "nick">("newest");
+  const [muted, setMuted] = useState(isSoundMuted);
+  const [waCandidate, setWaCandidate] = useState<StoredCandidate | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Persist on change
+  useEffect(() => saveCandidates(candidates), [candidates]);
+
+  function updateStatus(id: string, status: StoredCandidate["status"]) {
+    setCandidates((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, status } : c)),
+    );
+    if (status === "aprovado") {
+      toast.success("Candidato aprovado p/ teste.");
       playApproveSound();
-    } else if (newStatus === "recusado") {
+    } else if (status === "recusado") {
+      toast.error("Candidato recusado.");
       playDenySound();
     } else {
-      playClickSound();
+      toast.info("Status atualizado para Em Análise.");
     }
-
-    const updated = candidates.map((cand) =>
-      cand.id === id ? { ...cand, status: newStatus } : cand,
-    );
-    persistCandidates(updated);
-    const label =
-      newStatus === "aprovado" ? "APROVADO PARA TESTE" : newStatus === "recusado" ? "RECUSADO" : "EM ANÁLISE";
-    toast.success(`Candidato alterado para: ${label}`);
   }
 
   function deleteCandidate(id: string) {
-    playDenySound();
-    const target = candidates.find((c) => c.id === id);
-    const updated = candidates.filter((c) => c.id !== id);
-    persistCandidates(updated);
-    toast.info(`Candidatura de ${target?.nick || "jogador"} removida do painel.`);
+    setCandidates((prev) => prev.filter((c) => c.id !== id));
+    toast.success("Candidato removido.");
   }
 
-  function handleSaveNote(id: string) {
-    playClickSound();
-    const updated = candidates.map((cand) =>
-      cand.id === id ? { ...cand, staffNote: noteDraft.trim() } : cand,
+  function updateNote(id: string, note: string) {
+    setCandidates((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, staffNote: note } : c)),
     );
-    persistCandidates(updated);
-    setEditingNoteId(null);
-    toast.success("Anotação da liderança salva!");
   }
 
-  function handleAddPlayerSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newPlayer.nick || !newPlayer.idConta || !newPlayer.whatsapp) {
-      toast.error("Preencha ao menos Nick, ID da Conta e WhatsApp.");
-      return;
-    }
-
-    playApproveSound();
-    const added: StoredCandidate = {
-      id: `cand-${Date.now()}`,
-      nome: newPlayer.nome || newPlayer.nick,
-      idade: newPlayer.idade || "18",
-      nick: newPlayer.nick,
-      idConta: newPlayer.idConta,
-      cidadeEstado: newPlayer.cidadeEstado || "Brasil",
-      whatsapp: newPlayer.whatsapp,
-      funcao: newPlayer.funcao,
-      patenteAtual: newPlayer.patenteAtual,
-      experienciaCompetitiva: newPlayer.experienciaCompetitiva,
-      experienciaDescricao: newPlayer.experienciaDescricao,
-      tempoDisponivel: newPlayer.tempoDisponivel,
-      horarioDisponivel: newPlayer.horarioDisponivel,
-      staffNote: newPlayer.staffNote || "Cadastrado manualmente pela staff.",
-      status: "pendente",
-      submittedAt: "Adicionado Manualmente",
-    };
-
-    persistCandidates([added, ...candidates]);
-    setIsAddModalOpen(false);
-    setNewPlayer({
-      nome: "",
-      idade: "",
-      nick: "",
-      idConta: "",
-      cidadeEstado: "",
-      whatsapp: "",
-      funcao: "rush",
-      patenteAtual: "diamente_mestre",
-      experienciaCompetitiva: "sim",
-      experienciaDescricao: "",
-      tempoDisponivel: "2-4h",
-      horarioDisponivel: "19h às 23h",
-      staffNote: "",
-    });
-    toast.success(`Jogador ${added.nick} adicionado à lista!`);
+  function addCandidate(c: StoredCandidate) {
+    setCandidates((prev) => [c, ...prev]);
   }
 
-  function copyCandidateDossier(c: StoredCandidate) {
+  function approveViaWa(id: string) {
+    updateStatus(id, "aprovado");
+  }
+
+  function exportCsv() {
     playClickSound();
-    const text = [
-      `*${GUILD_NAME} ${GUILD_MARK} — Dossiê de Recrutamento*`,
-      `Nick: ${c.nick} (ID: ${c.idConta})`,
-      `Nome: ${c.nome} (${c.idade} anos) - ${c.cidadeEstado}`,
-      `Função: ${displayValue("funcao", c)}`,
-      `Patente: ${displayValue("patenteAtual", c)}`,
-      `Disponibilidade: ${c.horarioDisponivel} (${displayValue("tempoDisponivel", c)})`,
-      c.experienciaDescricao ? `Histórico Competitivo: ${c.experienciaDescricao}` : "",
-      c.staffNote ? `Nota da Staff: ${c.staffNote}` : "",
-      `WhatsApp: ${c.whatsapp}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    navigator.clipboard.writeText(text);
-    toast.success(`Dossiê de ${c.nick} copiado para a área de transferência!`);
-  }
-
-  function exportData() {
-    playClickSound();
-    const jsonStr = JSON.stringify(candidates, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
+    const header = "Nick,Nome,Idade,Cidade,WhatsApp,ID,Função,Patente,Horário,Status,Data";
+    const rows = candidates.map((c) =>
+      [
+        c.nick,
+        c.nome,
+        c.idade,
+        c.cidadeEstado,
+        c.whatsapp,
+        c.idConta,
+        labelOf(FUNCOES, c.funcao),
+        labelOf(PATENTES_LATAM, c.patenteAtual),
+        c.horarioDisponivel,
+        c.status ?? "pendente",
+        c.submittedAt ?? "",
+      ]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(","),
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `recrutamento-latam-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `latam-candidatos-${Date.now()}.csv`;
+    a.click();
     URL.revokeObjectURL(url);
-    toast.success("Relatório JSON exportado com sucesso!");
+    toast.success("Exportação concluída.");
   }
 
-  // Filtragem e ordenação
+  // Stats
+  const total = candidates.length;
+  const emAnalise = candidates.filter((c) => c.status === "pendente").length;
+  const aprovados = candidates.filter((c) => c.status === "aprovado").length;
+  const recusados = candidates.filter((c) => c.status === "recusado").length;
+  const vagasLivres = Math.max(0, LINEUP_SLOTS - aprovados);
+
+  // Filter + sort
   const filtered = candidates
     .filter((c) => {
-      const q = searchTerm.toLowerCase();
-      const matchesSearch =
-        c.nick.toLowerCase().includes(q) ||
-        c.nome.toLowerCase().includes(q) ||
-        c.idConta.includes(q) ||
-        c.whatsapp.includes(q);
-
-      const matchesStatus = filterStatus === "todos" ? true : (c.status || "pendente") === filterStatus;
-      const matchesFuncao = filterFuncao === "todos" ? true : c.funcao === filterFuncao;
-
-      return matchesSearch && matchesStatus && matchesFuncao;
+      if (filterStatus !== "todos" && c.status !== filterStatus) return false;
+      if (funcaoFilter && c.funcao !== funcaoFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          c.nick.toLowerCase().includes(q) ||
+          c.nome.toLowerCase().includes(q) ||
+          c.cidadeEstado.toLowerCase().includes(q) ||
+          c.idConta.includes(q)
+        );
+      }
+      return true;
     })
     .sort((a, b) => {
-      if (sortBy === "patente") {
-        const rankPriority: Record<string, number> = {
-          elite: 4,
-          diamente_mestre: 3,
-          platina_diamente: 2,
-          ouro_platina: 1,
-          outra: 0,
-        };
-        return (rankPriority[b.patenteAtual] || 0) - (rankPriority[a.patenteAtual] || 0);
-      }
-      if (sortBy === "tempo") {
-        const timePriority: Record<string, number> = { "4+h": 3, "2-4h": 2, "1-2h": 1 };
-        return (timePriority[b.tempoDisponivel] || 0) - (timePriority[a.tempoDisponivel] || 0);
-      }
-      return 0; // "recentes" mantém a ordem de inserção
+      if (sortBy === "nick") return a.nick.localeCompare(b.nick);
+      if (sortBy === "oldest") return (a.submittedAt ?? "").localeCompare(b.submittedAt ?? "");
+      return (b.submittedAt ?? "").localeCompare(a.submittedAt ?? "");
     });
 
-  const countPendente = candidates.filter((c) => (c.status || "pendente") === "pendente").length;
-  const countAprovado = candidates.filter((c) => c.status === "aprovado").length;
-  const countRecusado = candidates.filter((c) => c.status === "recusado").length;
-  const lineSlotsFilled = Math.min(12, countAprovado);
+  const tabs: { value: FilterStatus; label: string; count: number }[] = [
+    { value: "todos", label: "Todos", count: total },
+    { value: "pendente", label: "Pendentes", count: emAnalise },
+    { value: "aprovado", label: "Aprovados", count: aprovados },
+    { value: "recusado", label: "Recusados", count: recusados },
+  ];
 
-  // ----------------------------------------------------
-  // TELA DE LOGIN: TERMINAL DE SEGURANÇA ESPORTS 3D
-  // ----------------------------------------------------
-  if (!isAuthenticated) {
-    return (
-      <main className="page-bg min-h-screen flex flex-col justify-between relative overflow-hidden">
-        {/* Cyber Runway Floor 3D */}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-96 opacity-30 [perspective:600px] overflow-hidden -z-10"
-          aria-hidden="true"
-        >
-          <div
-            className="w-full h-full [transform:rotateX(75deg)] origin-bottom"
-            style={{
-              backgroundImage: `
-                linear-gradient(to right, rgba(0, 180, 255, 0.25) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(0, 180, 255, 0.25) 1px, transparent 1px)
-              `,
-              backgroundSize: "40px 40px",
-              maskImage: "radial-gradient(ellipse 70% 60% at 50% 100%, black 20%, transparent 80%)",
-            }}
-          />
-        </div>
+  const selectClass =
+    "rounded-lg border border-white/10 bg-[#121821] px-3 py-1.5 text-sm text-foreground focus:border-accent/50 focus:outline-none";
 
-        <header className="site-header backdrop-blur-md bg-background/85 sticky top-0 z-30 border-b border-white/5">
-          <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
-            <Link to="/" className="flex items-center gap-2.5 no-underline group">
-              <img
-                src="/latam-mark.webp"
-                alt=""
-                width="32"
-                height="32"
-                className="size-8 transition-transform group-hover:scale-105"
-              />
-              <span className="font-display text-xl tracking-[0.14em] text-silver group-hover:text-white">
-                {GUILD_NAME} <span className="tracking-normal text-accent">{GUILD_MARK}</span>
-              </span>
-            </Link>
-
-            <Link
-              to="/"
-              className="text-xs font-semibold text-muted-foreground hover:text-white uppercase tracking-wider transition-colors"
-            >
-              Voltar ao Site
-            </Link>
-          </div>
-        </header>
-
-        <div className="mx-auto w-full max-w-md px-5 py-12 flex items-center justify-center">
-          <motion.div
-            animate={shake ? { x: [-10, 10, -8, 8, -4, 4, 0] } : {}}
-            transition={{ duration: 0.4 }}
-            className="w-full"
-          >
-            <TiltCard
-              maxTilt={8}
-              glareOpacity={0.25}
-              className="section-card border border-accent/30 p-8 text-center relative overflow-hidden rounded-3xl shadow-[0_25px_60px_rgba(0,0,0,0.85)] bg-gradient-to-b from-[#121927] via-[#0d121c] to-[#080c13]"
-            >
-              {/* HUD Corner Brackets */}
-              <span className="absolute top-3 left-3 size-3 border-t-2 border-l-2 border-accent/60 pointer-events-none" />
-              <span className="absolute top-3 right-3 size-3 border-t-2 border-r-2 border-accent/60 pointer-events-none" />
-              <span className="absolute bottom-3 left-3 size-3 border-b-2 border-l-2 border-accent/60 pointer-events-none" />
-              <span className="absolute bottom-3 right-3 size-3 border-b-2 border-r-2 border-accent/60 pointer-events-none" />
-
-              {/* Brasão Holográfico com Glow */}
-              <div className="relative mx-auto size-20 flex items-center justify-center mb-4">
-                <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full scale-125 animate-pulse" />
-                <img
-                  src="/latam-mark.webp"
-                  alt="Brasão LATAM"
-                  className="size-16 relative z-10 drop-shadow-[0_0_18px_rgba(0,180,255,0.45)]"
-                />
-              </div>
-
-              {/* Protocol Badge */}
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 border border-accent/30 text-[10px] font-bold uppercase tracking-[0.2em] text-accent mb-2">
-                <span className="size-1.5 rounded-full bg-accent animate-ping" />
-                Protocolo Staff v2.6
-              </div>
-
-              <h1 className="font-display text-3xl tracking-wide text-silver">Painel da Liderança</h1>
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                Ambiente restrito aos administradores, recrutadores e capitães da guilda {GUILD_NAME} {GUILD_MARK}.
-              </p>
-
-              <form onSubmit={handleLogin} className="mt-6 flex flex-col gap-3.5">
-                <div className="relative">
-                  <KeyRound className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-accent/70 pointer-events-none" />
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Digite a chave de segurança..."
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    disabled={isLocked}
-                    autoFocus
-                    className="pl-10 pr-10 text-center font-mono tracking-widest text-sm bg-card-2 border-white/10 focus:border-accent text-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full relative overflow-hidden group shadow-[0_0_20px_rgba(0,180,255,0.25)]"
-                  disabled={isLocked}
-                >
-                  <ShieldCheck className="size-4 mr-1.5 transition-transform group-hover:scale-110" />
-                  {isLocked ? "Bloqueado Temporariamente" : "Autenticar Liderança"}
-                </Button>
-
-                <div className="flex items-center justify-center gap-1.5 text-[11px] text-subtle mt-1">
-                  <Lock className="size-3 text-accent" />
-                  <span>Sessão Criptografada SSL · Acesso Seguro</span>
-                </div>
-              </form>
-            </TiltCard>
-          </motion.div>
-        </div>
-
-        <footer className="px-5 pb-8 pt-4 text-center text-xs text-subtle">
-          {GUILD_NAME} · Sistema Administrativo de Recrutamento Competitivo
-        </footer>
-      </main>
-    );
-  }
-
-  // ----------------------------------------------------
-  // DASHBOARD DA LIDERANÇA: ESPORTS MANAGEMENT SUITE
-  // ----------------------------------------------------
   return (
-    <main className="page-bg min-h-screen pb-24">
-      {/* Topo Fixo com Indicador de Status */}
-      <header className="site-header backdrop-blur-md bg-background/90 sticky top-0 z-40 border-b border-white/5">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
-          <Link to="/" className="flex items-center gap-2.5 no-underline">
-            <img src="/latam-mark.webp" alt="" width="32" height="32" className="size-8" />
-            <span className="font-display text-xl tracking-[0.14em] text-silver">
-              {GUILD_NAME} <span className="tracking-normal text-accent">{GUILD_MARK}</span>
+    <div className="min-h-screen page-bg">
+      {/* ── Topbar ── */}
+      <header className="sticky top-0 z-30 border-b border-white/8 bg-[#07090e]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+          {/* Logo */}
+          <div className="flex items-center gap-2 mr-4">
+            <img src="/latam-mark.webp" alt={`${GUILD_NAME}${GUILD_MARK}`} className="h-7 w-auto" />
+            <span className="font-display text-xl text-silver hidden sm:block">
+              {GUILD_NAME} <span className="text-accent">{GUILD_MARK}</span>
             </span>
-          </Link>
+          </div>
 
-          <div className="flex items-center gap-2.5">
-            <span className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-accent bg-accent/15 px-3 py-1 rounded-full border border-accent/30 shadow-[0_0_10px_rgba(0,180,255,0.2)]">
-              <span className="size-1.5 rounded-full bg-accent animate-pulse" />
-              Liderança Ativa
-            </span>
+          <div className="flex-1">
+            <h2 className="font-display text-lg text-silver leading-none">
+              Candidaturas
+            </h2>
+          </div>
 
-            {/* Controle de Som */}
+          {/* Right actions */}
+          <div className="flex items-center gap-2">
+            {/* Sound toggle */}
             <button
-              type="button"
-              onClick={handleSoundToggle}
-              title={soundMuted ? "Ativar som" : "Desativar som"}
-              className="p-2 rounded-lg border border-white/8 bg-white/4 hover:bg-white/8 text-silver transition-colors"
+              onClick={() => {
+                const m = toggleSound();
+                setMuted(m);
+              }}
+              className="rounded-lg p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+              title={muted ? "Ativar som" : "Silenciar"}
             >
-              {soundMuted ? <VolumeX className="size-4 text-subtle" /> : <Volume2 className="size-4 text-accent" />}
+              {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
 
-            {/* Ação Novo Jogador */}
+            {/* Export */}
             <button
-              type="button"
+              onClick={exportCsv}
+              className="rounded-lg p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+              title="Exportar CSV"
+            >
+              <Download size={16} />
+            </button>
+
+            {/* Add player */}
+            <Button
+              className="gap-1.5 py-2 text-sm"
               onClick={() => {
                 playClickSound();
-                setIsAddModalOpen(true);
+                setShowAddModal(true);
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-3 py-1.5 rounded-lg border border-accent/40 bg-accent/15 text-accent hover:bg-accent hover:text-neutral-950 transition-all active:scale-95 shadow-[0_0_10px_rgba(0,180,255,0.15)]"
             >
-              <UserPlus className="size-3.5" />
-              <span className="hidden md:inline">Novo</span> Jogador
-            </button>
-
-            {/* Ação Exportar */}
-            <button
-              type="button"
-              onClick={exportData}
-              title="Exportar Candidaturas (.JSON)"
-              className="p-2 rounded-lg border border-white/8 bg-white/4 hover:bg-white/8 text-silver transition-colors"
-            >
-              <Download className="size-4" />
-            </button>
-
-            <Button
-              variant="ghost"
-              size="default"
-              onClick={handleLogout}
-              className="text-xs text-muted-foreground hover:text-white"
-            >
-              <LogOut className="size-3.5" />
-              <span className="hidden sm:inline">Sair</span>
+              <UserPlus size={14} />
+              <span className="hidden sm:inline">+ Novo Jogador</span>
+              <span className="sm:hidden">+</span>
             </Button>
+
+            {/* Logout */}
+            <button
+              onClick={() => {
+                playClickSound();
+                try { sessionStorage.removeItem(AUTH_KEY); } catch { /* ignore */ }
+                onLogout();
+                toast.info("Sessão encerrada.");
+              }}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+            >
+              <LogOut size={14} />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-5 pt-8">
-        {/* Banner de Boas-Vindas */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-accent" />
-              <p className="text-xs font-semibold tracking-[0.2em] text-accent uppercase">
-                Staff & Recrutamento Competitivo
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+        {/* ── Stat Cards ── */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {/* Total */}
+          <div className="rounded-xl border border-white/8 bg-[#0e131b] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-widest text-subtle">
+                Total Inscritos
               </p>
+              <Users size={15} className="text-subtle" />
             </div>
-            <h1 className="font-display mt-1 text-4xl tracking-wide text-silver sm:text-5xl">
-              Candidaturas Recebidas
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
-              Gerencie a line-up oficial, convoque jogadores no WhatsApp com mensagens prontas e registre anotações da staff.
-            </p>
+            <p className="font-display text-4xl text-foreground">{total}</p>
           </div>
 
-          <Link
-            to="/candidatura"
-            className="inline-flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider px-4 py-2.5 rounded-xl border border-white/10 bg-white/4 hover:bg-white/8 text-silver transition-all self-start md:self-auto"
-          >
-            <ExternalLink className="size-3.5 text-accent" />
-            Abrir Formulário Público
-          </Link>
-        </div>
+          {/* Em Análise */}
+          <div className="rounded-xl border border-amber-500/15 bg-[#0e131b] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-widest text-subtle">
+                Em Análise
+              </p>
+              <Clock size={15} className="text-amber-400" />
+            </div>
+            <p className="font-display text-4xl text-amber-400">{emAnalise}</p>
+          </div>
 
-        {/* Grade de Métricas & Medidor da Line-up 3D */}
-        <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Card 1: Total */}
-          <TiltCard
-            maxTilt={6}
-            glareOpacity={0.15}
-            className="section-card p-4 border border-white/10 bg-card/90 rounded-2xl relative overflow-hidden"
-          >
-            <div className="flex items-center justify-between text-subtle">
-              <p className="text-[11px] font-bold uppercase tracking-wider">Total Inscritos</p>
-              <Users className="size-4 text-accent" />
+          {/* Aprovados */}
+          <div className="rounded-xl border border-emerald-500/15 bg-[#0e131b] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-widest text-subtle">
+                Aprovados p/ Teste
+              </p>
+              <Trophy size={15} className="text-emerald-400" />
             </div>
-            <p className="font-display text-4xl text-white mt-2">{candidates.length}</p>
-            <p className="text-[11px] text-subtle mt-1">Jogadores na base</p>
-          </TiltCard>
+            <p className="font-display text-4xl text-emerald-400">{aprovados}</p>
+          </div>
 
-          {/* Card 2: Em Análise */}
-          <TiltCard
-            maxTilt={6}
-            glareOpacity={0.15}
-            className="section-card p-4 border border-amber-500/25 bg-card/90 rounded-2xl relative overflow-hidden shadow-[0_0_20px_rgba(245,158,11,0.06)]"
-          >
-            <div className="flex items-center justify-between text-amber-400">
-              <p className="text-[11px] font-bold uppercase tracking-wider">Em Análise</p>
-              <Clock className="size-4" />
+          {/* Vagas */}
+          <div className="rounded-xl border border-accent/15 bg-[#0e131b] p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs uppercase tracking-widest text-subtle">
+                Vagas da Line-up
+              </p>
+              <Swords size={15} className="text-accent" />
             </div>
-            <p className="font-display text-4xl text-amber-300 mt-2">{countPendente}</p>
-            <p className="text-[11px] text-amber-400/80 mt-1">Aguardando decisão</p>
-          </TiltCard>
-
-          {/* Card 3: Aprovados */}
-          <TiltCard
-            maxTilt={6}
-            glareOpacity={0.15}
-            className="section-card p-4 border border-emerald-500/25 bg-card/90 rounded-2xl relative overflow-hidden shadow-[0_0_20px_rgba(16,185,129,0.06)]"
-          >
-            <div className="flex items-center justify-between text-emerald-400">
-              <p className="text-[11px] font-bold uppercase tracking-wider">Aprovados p/ Teste</p>
-              <Trophy className="size-4" />
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className="font-display text-4xl text-accent">{aprovados}</span>
+              <span className="text-sm font-semibold text-subtle">/ {LINEUP_SLOTS}</span>
             </div>
-            <p className="font-display text-4xl text-emerald-300 mt-2">{countAprovado}</p>
-            <p className="text-[11px] text-emerald-400/80 mt-1">Prontos para sala</p>
-          </TiltCard>
-
-          {/* Card 4: Vagas da Line-up com Segmented Bar */}
-          <TiltCard
-            maxTilt={6}
-            glareOpacity={0.15}
-            className="section-card p-4 border border-accent/25 bg-card/90 rounded-2xl relative overflow-hidden shadow-[0_0_20px_rgba(0,180,255,0.06)]"
-          >
-            <div className="flex items-center justify-between text-accent">
-              <p className="text-[11px] font-bold uppercase tracking-wider">Vagas da Line-up</p>
-              <Swords className="size-4" />
+            <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mb-2">
+              <div
+                className="bg-accent h-full rounded-full transition-all duration-300"
+                style={{ width: `${Math.min(100, (aprovados / LINEUP_SLOTS) * 100)}%` }}
+              />
             </div>
-            <div className="flex items-baseline gap-1.5 mt-2">
-              <span className="font-display text-4xl text-accent">{lineSlotsFilled}</span>
-              <span className="text-sm font-semibold text-subtle">/ 12</span>
-            </div>
-
-            {/* Barra de 12 Slots Segmentados */}
-            <div className="mt-2.5 flex gap-1">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2 flex-1 rounded-sm transition-all ${
-                    i < lineSlotsFilled ? "bg-accent shadow-[0_0_6px_rgba(0,180,255,0.5)]" : "bg-white/10"
-                  }`}
-                />
-              ))}
-            </div>
-            <p className="text-[11px] text-subtle mt-1.5">
-              {Math.max(0, 12 - lineSlotsFilled)} vagas disponíveis
+            <p className="text-[11px] text-subtle">
+              {vagasLivres} vaga{vagasLivres !== 1 ? "s" : ""} livre{vagasLivres !== 1 ? "s" : ""}
             </p>
-          </TiltCard>
+          </div>
         </div>
 
-        {/* Barra de Busca, Filtros e Ordenação */}
-        <div className="mt-8 flex flex-col lg:flex-row gap-3.5 items-stretch lg:items-center justify-between">
-          {/* Campo de Busca */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-subtle pointer-events-none" />
+        {/* ── Search + Filters ── */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="relative flex-1 min-w-48">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle"
+            />
             <input
               type="text"
-              placeholder="Buscar Nick, Nome, ID ou WhatsApp..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-card-2 border border-white/10 text-sm text-foreground focus:outline-none focus:border-accent"
+              placeholder="Buscar por nick, nome ou cidade..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-[#121821] py-1.5 pl-8 pr-8 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none"
             />
-            {searchTerm ? (
+            {search && (
               <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-subtle hover:text-white"
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-subtle hover:text-foreground"
               >
-                <X className="size-3.5" />
+                <X size={13} />
               </button>
-            ) : null}
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-2.5 items-center">
-            {/* Abas de Status com Contadores Numéricos */}
-            <div className="flex rounded-xl border border-white/10 bg-card-2 p-1 text-xs font-semibold">
+          {/* Status tabs */}
+          <div className="flex items-center gap-0.5 rounded-lg border border-white/8 bg-[#121821] p-0.5">
+            {tabs.map((tab) => (
               <button
-                type="button"
+                key={tab.value}
                 onClick={() => {
                   playClickSound();
-                  setFilterStatus("todos");
+                  setFilterStatus(tab.value);
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  filterStatus === "todos"
-                    ? "bg-accent text-neutral-950 font-bold shadow-[0_0_10px_rgba(0,180,255,0.3)]"
-                    : "text-muted-foreground hover:text-silver"
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                  filterStatus === tab.value
+                    ? "bg-accent text-accent-foreground"
+                    : "text-subtle hover:text-foreground"
                 }`}
               >
-                <span>Todos</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/25">{candidates.length}</span>
+                {tab.label}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                    filterStatus === tab.value
+                      ? "bg-accent-foreground/20 text-accent-foreground"
+                      : "bg-white/8 text-subtle"
+                  }`}
+                >
+                  {tab.count}
+                </span>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  playClickSound();
-                  setFilterStatus("pendente");
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  filterStatus === "pendente"
-                    ? "bg-amber-500 text-neutral-950 font-bold shadow-[0_0_10px_rgba(245,158,11,0.3)]"
-                    : "text-muted-foreground hover:text-silver"
-                }`}
-              >
-                <span>Pendentes</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/25">{countPendente}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  playClickSound();
-                  setFilterStatus("aprovado");
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  filterStatus === "aprovado"
-                    ? "bg-emerald-500 text-neutral-950 font-bold shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                    : "text-muted-foreground hover:text-silver"
-                }`}
-              >
-                <span>Aprovados</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/25">{countAprovado}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  playClickSound();
-                  setFilterStatus("recusado");
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  filterStatus === "recusado"
-                    ? "bg-red-500 text-neutral-950 font-bold shadow-[0_0_10px_rgba(239,68,68,0.3)]"
-                    : "text-muted-foreground hover:text-silver"
-                }`}
-              >
-                <span>Recusados</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/25">{countRecusado}</span>
-              </button>
-            </div>
-
-            {/* Filtro Função */}
-            <select
-              value={filterFuncao}
-              onChange={(e) => {
-                playClickSound();
-                setFilterFuncao(e.target.value);
-              }}
-              className="rounded-xl bg-card-2 border border-white/10 px-3 py-2 text-xs font-semibold text-silver focus:outline-none focus:border-accent"
-            >
-              <option value="todos">Todas as Funções</option>
-              {FUNCOES.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label} ({f.badge})
-                </option>
-              ))}
-            </select>
-
-            {/* Ordenação */}
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                playClickSound();
-                setSortBy(e.target.value as any);
-              }}
-              className="rounded-xl bg-card-2 border border-white/10 px-3 py-2 text-xs font-semibold text-silver focus:outline-none focus:border-accent"
-            >
-              <option value="recentes">Mais Recentes</option>
-              <option value="patente">Maior Patente</option>
-              <option value="tempo">Maior Disponibilidade</option>
-            </select>
+            ))}
           </div>
+
+          {/* Function filter */}
+          <select
+            value={funcaoFilter}
+            onChange={(e) => {
+              playClickSound();
+              setFuncaoFilter(e.target.value);
+            }}
+            className={selectClass}
+          >
+            <option value="">Todas as funções</option>
+            {FUNCOES.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              playClickSound();
+              setSortBy(e.target.value as typeof sortBy);
+            }}
+            className={selectClass}
+          >
+            <option value="newest">Mais recentes</option>
+            <option value="oldest">Mais antigos</option>
+            <option value="nick">Nick (A-Z)</option>
+          </select>
         </div>
 
-        {/* Lista de Dossiês de Candidatos */}
-        <div className="mt-6 flex flex-col gap-4">
+        {/* ── Candidate List ── */}
+        <div className="space-y-3">
           {filtered.length === 0 ? (
-            <div className="section-card py-20 text-center text-muted-foreground rounded-2xl border border-white/8">
-              <Users className="size-12 mx-auto text-subtle mb-3 opacity-50" />
-              <p className="font-semibold text-lg text-silver">Nenhum candidato localizado</p>
-              <p className="text-xs mt-1">Ajuste os filtros de busca ou adicione um jogador manualmente.</p>
+            <div className="py-20 text-center">
+              <Users size={32} className="mx-auto mb-4 text-subtle/40" />
+              <p className="text-subtle">Nenhum candidato encontrado.</p>
             </div>
           ) : (
-            filtered.map((cand) => {
-              const status = cand.status || "pendente";
-              const rankInfo = getRankBadgeInfo(cand.patenteAtual);
-              const RankIcon = rankInfo.icon;
-              const roleInfo = getRoleBadgeInfo(cand.funcao);
-              const RoleIcon = roleInfo.icon;
-
-              return (
-                <TiltCard
-                  key={cand.id}
-                  maxTilt={3}
-                  glareOpacity={0.1}
-                  className="section-card p-5 border border-white/10 bg-gradient-to-br from-[#121824] via-[#0d121b] to-[#090d14] rounded-2xl relative overflow-hidden group shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
-                >
-                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-5">
-                    {/* Bloco de Informações Principais */}
-                    <div className="flex items-start gap-4">
-                      {/* Avatar com Rank Insignia */}
-                      <div className="relative shrink-0">
-                        <div className="size-14 rounded-2xl bg-gradient-to-br from-[#1a2333] to-[#0f1520] border border-white/15 flex items-center justify-center text-accent shadow-[0_0_15px_rgba(0,180,255,0.2)]">
-                          <Users className="size-7" />
-                        </div>
-                        <div
-                          title={rankInfo.label}
-                          className="absolute -bottom-1 -right-1 size-6 rounded-lg bg-card-2 border border-white/20 flex items-center justify-center text-amber-300 shadow-md"
-                        >
-                          <RankIcon className="size-3.5" />
-                        </div>
-                      </div>
-
-                      <div className="flex-1">
-                        {/* Nick & Nome */}
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <h3 className="font-display text-2xl tracking-wide text-white leading-tight">
-                            {cand.nick}
-                          </h3>
-                          <span className="text-xs text-muted-foreground">
-                            ({cand.nome}, {cand.idade} anos)
-                          </span>
-
-                          {/* Status Pill */}
-                          {status === "aprovado" ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                              <CheckCircle2 className="size-3" />
-                              Aprovado p/ Teste
-                            </span>
-                          ) : status === "recusado" ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40">
-                              <XCircle className="size-3" />
-                              Recusado
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                              <Clock className="size-3" />
-                              Em Análise
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Localização & Data de Envio */}
-                        <p className="text-xs text-subtle mt-1 flex items-center gap-1.5">
-                          <MapPin className="size-3 text-accent" />
-                          <span>{cand.cidadeEstado}</span>
-                          <span>•</span>
-                          <span>Enviado: {cand.submittedAt || "Recente"}</span>
-                        </p>
-
-                        {/* Badges de Atributos */}
-                        <div className="mt-3 flex flex-wrap gap-2 items-center">
-                          {/* Badge Função */}
-                          <span
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border ${roleInfo.color}`}
-                          >
-                            <RoleIcon className="size-3.5" />
-                            <span>{roleInfo.label}</span>
-                            <span className="text-[10px] opacity-75 font-normal">({roleInfo.badge})</span>
-                          </span>
-
-                          {/* Badge Patente */}
-                          <span
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg border bg-gradient-to-r ${rankInfo.color}`}
-                          >
-                            <RankIcon className="size-3.5" />
-                            <span>{displayValue("patenteAtual", cand)}</span>
-                          </span>
-
-                          {/* Badge ID com Copiar Rápido */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(cand.idConta);
-                              playClickSound();
-                              toast.success(`ID ${cand.idConta} copiado!`);
-                            }}
-                            title="Clique para copiar ID do Free Fire"
-                            className="inline-flex items-center gap-1 text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-accent transition-colors"
-                          >
-                            <span>ID: {cand.idConta}</span>
-                            <Copy className="size-3 opacity-60" />
-                          </button>
-
-                          {/* Badge Horário */}
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-silver">
-                            <Clock className="size-3 text-subtle" />
-                            <span>
-                              {cand.horarioDisponivel} ({displayValue("tempoDisponivel", cand)})
-                            </span>
-                          </span>
-                        </div>
-
-                        {/* Histórico Competitivo */}
-                        {cand.experienciaDescricao ? (
-                          <div className="mt-3 p-3 rounded-xl bg-black/40 border border-white/8 text-xs text-silver/90 leading-relaxed relative">
-                            <span className="text-accent font-bold uppercase tracking-wider text-[10px] block mb-0.5">
-                              Histórico Competitivo
-                            </span>
-                            {cand.experienciaDescricao}
-                          </div>
-                        ) : null}
-
-                        {/* Bloco de Anotações da Staff */}
-                        <div className="mt-3">
-                          {editingNoteId === cand.id ? (
-                            <div className="flex items-center gap-2 mt-1">
-                              <input
-                                type="text"
-                                value={noteDraft}
-                                onChange={(e) => setNoteDraft(e.target.value)}
-                                placeholder="Anotação interna (ex: jogou bem no 4v4, aguardando line 2)..."
-                                className="flex-1 px-3 py-1.5 rounded-lg bg-black/50 border border-accent/40 text-xs text-white focus:outline-none"
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleSaveNote(cand.id)}
-                                className="px-3 py-1.5 rounded-lg bg-accent text-neutral-950 font-bold text-xs"
-                              >
-                                Salvar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingNoteId(null)}
-                                className="px-2 py-1.5 rounded-lg border border-white/10 text-xs text-subtle"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              {cand.staffNote ? (
-                                <p className="text-xs text-accent/90 italic bg-accent/10 border border-accent/20 px-3 py-1 rounded-lg flex-1">
-                                  <strong>Nota Staff:</strong> {cand.staffNote}
-                                </p>
-                              ) : null}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingNoteId(cand.id);
-                                  setNoteDraft(cand.staffNote || "");
-                                }}
-                                className="text-[11px] font-semibold text-subtle hover:text-accent inline-flex items-center gap-1 transition-colors"
-                              >
-                                <Pencil className="size-3" />
-                                <span>{cand.staffNote ? "Editar Nota" : "+ Adicionar Nota Staff"}</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Ações da Liderança */}
-                    <div className="flex flex-row lg:flex-col gap-2 shrink-0 lg:min-w-[170px] justify-end">
-                      {/* Botão Chamar no Zap (Abre Seletor de Mensagens) */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          playClickSound();
-                          setActiveWhatsModal(cand);
-                        }}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all active:scale-95"
-                      >
-                        <MessageCircle className="size-4" />
-                        Chamar no Zap
-                      </button>
-
-                      {/* Copiar Ficha */}
-                      <button
-                        type="button"
-                        onClick={() => copyCandidateDossier(cand)}
-                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/4 hover:bg-white/8 text-silver transition-all"
-                      >
-                        <Copy className="size-3.5" />
-                        Copiar Ficha
-                      </button>
-
-                      {/* Controles de Status & Exclusão */}
-                      <div className="flex items-center gap-1.5 justify-end pt-1">
-                        <button
-                          type="button"
-                          title="Aprovar para Teste de Line"
-                          onClick={() => updateStatus(cand.id, "aprovado")}
-                          className={`p-2 rounded-lg border transition-all ${
-                            status === "aprovado"
-                              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                              : "border-white/8 bg-white/4 text-subtle hover:text-emerald-400 hover:bg-emerald-500/10"
-                          }`}
-                        >
-                          <CheckCircle2 className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          title="Colocar Em Análise"
-                          onClick={() => updateStatus(cand.id, "pendente")}
-                          className={`p-2 rounded-lg border transition-all ${
-                            status === "pendente"
-                              ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                              : "border-white/8 bg-white/4 text-subtle hover:text-amber-400 hover:bg-amber-500/10"
-                          }`}
-                        >
-                          <Clock className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          title="Recusar Candidatura"
-                          onClick={() => updateStatus(cand.id, "recusado")}
-                          className={`p-2 rounded-lg border transition-all ${
-                            status === "recusado"
-                              ? "bg-red-500/20 border-red-500/50 text-red-300"
-                              : "border-white/8 bg-white/4 text-subtle hover:text-red-400 hover:bg-red-500/10"
-                          }`}
-                        >
-                          <XCircle className="size-4" />
-                        </button>
-                        <button
-                          type="button"
-                          title="Excluir Jogador do Painel"
-                          onClick={() => deleteCandidate(cand.id)}
-                          className="p-2 rounded-lg border border-white/8 bg-white/4 text-subtle hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </TiltCard>
-              );
-            })
+            filtered.map((c) => (
+              <CandidateCard
+                key={c.id}
+                candidate={c}
+                onStatusChange={updateStatus}
+                onDelete={deleteCandidate}
+                onNoteChange={updateNote}
+                onWaClick={(cand) => {
+                  playClickSound();
+                  setWaCandidate(cand);
+                }}
+              />
+            ))
           )}
         </div>
-      </div>
+      </main>
 
-      {/* ---------------------------------------------------- */}
-      {/* MODAL 1: SELETOR DE MENSAGEM DO WHATSAPP             */}
-      {/* ---------------------------------------------------- */}
-      {activeWhatsModal ? (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="section-card border border-emerald-500/30 p-6 rounded-3xl max-w-lg w-full bg-[#0c111a] shadow-[0_20px_50px_rgba(0,0,0,0.9)] relative animate-in fade-in zoom-in-95 duration-200">
-            <button
-              type="button"
-              onClick={() => setActiveWhatsModal(null)}
-              className="absolute top-4 right-4 text-subtle hover:text-white"
-            >
-              <X className="size-5" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="size-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
-                <MessageCircle className="size-5" />
-              </div>
-              <div>
-                <h3 className="font-display text-2xl text-white">Chamar no WhatsApp</h3>
-                <p className="text-xs text-muted-foreground">
-                  Jogador: <strong className="text-emerald-400">{activeWhatsModal.nick}</strong> (
-                  {activeWhatsModal.whatsapp})
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-subtle mt-4 mb-3">Escolha o modelo de mensagem pronta:</p>
-
-            <div className="flex flex-col gap-2.5">
-              {/* Modelo 1: Teste de Line */}
-              {(() => {
-                const msg = `Fala ${activeWhatsModal.nick}! Aqui é a liderança da guilda LATAM 友. Analisamos sua candidatura para ${displayValue("funcao", activeWhatsModal)} e queremos agendar seu teste de line-up. Que dia e horário você pode entrar em call?`;
-                const url = formatWhatsAppUrl(activeWhatsModal.whatsapp, msg);
-                return (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setActiveWhatsModal(null)}
-                    className="p-3.5 rounded-xl border border-white/10 bg-white/4 hover:bg-emerald-500/15 hover:border-emerald-500/40 text-left transition-all group"
-                  >
-                    <p className="text-xs font-bold text-emerald-300 flex items-center justify-between">
-                      <span>⚔️ 1. Convocação para Teste de Line</span>
-                      <ExternalLink className="size-3.5 opacity-60 group-hover:opacity-100" />
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{msg}</p>
-                  </a>
-                );
-              })()}
-
-              {/* Modelo 2: Entrevista Rápida */}
-              {(() => {
-                const msg = `Fala ${activeWhatsModal.nick}, beleza? Aqui é da liderança da LATAM 友. Gostamos do seu perfil de ${displayValue("funcao", activeWhatsModal)}! Queremos trocar uma ideia rápida antes de marcar o teste.`;
-                const url = formatWhatsAppUrl(activeWhatsModal.whatsapp, msg);
-                return (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setActiveWhatsModal(null)}
-                    className="p-3.5 rounded-xl border border-white/10 bg-white/4 hover:bg-emerald-500/15 hover:border-emerald-500/40 text-left transition-all group"
-                  >
-                    <p className="text-xs font-bold text-accent flex items-center justify-between">
-                      <span>🎙️ 2. Entrevista / Alinhamento de Horário</span>
-                      <ExternalLink className="size-3.5 opacity-60 group-hover:opacity-100" />
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{msg}</p>
-                  </a>
-                );
-              })()}
-
-              {/* Modelo 3: Aprovação Oficial */}
-              {(() => {
-                const msg = `Parabéns ${activeWhatsModal.nick}! Você foi APROVADO para a guilda competitiva LATAM 友! Salva nosso contato para adicionarmos você ao grupo oficial e combinarmos sua line-up.`;
-                const url = formatWhatsAppUrl(activeWhatsModal.whatsapp, msg);
-                return (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => {
-                      updateStatus(activeWhatsModal.id, "aprovado");
-                      setActiveWhatsModal(null);
-                    }}
-                    className="p-3.5 rounded-xl border border-white/10 bg-white/4 hover:bg-emerald-500/15 hover:border-emerald-500/40 text-left transition-all group"
-                  >
-                    <p className="text-xs font-bold text-amber-300 flex items-center justify-between">
-                      <span>🏆 3. Aprovação Oficial na LATAM 友</span>
-                      <ExternalLink className="size-3.5 opacity-60 group-hover:opacity-100" />
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{msg}</p>
-                  </a>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ---------------------------------------------------- */}
-      {/* MODAL 2: ADICIONAR JOGADOR MANUALMENTE               */}
-      {/* ---------------------------------------------------- */}
-      {isAddModalOpen ? (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="section-card border border-accent/40 p-6 rounded-3xl max-w-lg w-full bg-[#0c111a] shadow-[0_20px_50px_rgba(0,0,0,0.9)] relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(false)}
-              className="absolute top-4 right-4 text-subtle hover:text-white"
-            >
-              <X className="size-5" />
-            </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div className="size-10 rounded-xl bg-accent/20 text-accent border border-accent/30 flex items-center justify-center">
-                <UserPlus className="size-5" />
-              </div>
-              <div>
-                <h3 className="font-display text-2xl text-white">Cadastrar Jogador Manual</h3>
-                <p className="text-xs text-muted-foreground">Adicione um player à base da staff da guilda.</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleAddPlayerSubmit} className="flex flex-col gap-3.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-subtle uppercase">Nick no FF *</label>
-                  <Input
-                    placeholder="Ex: LUK4S_FF"
-                    value={newPlayer.nick}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, nick: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-subtle uppercase">ID da Conta FF *</label>
-                  <Input
-                    placeholder="Ex: 189420392"
-                    value={newPlayer.idConta}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, idConta: maskPlayerId(e.target.value) })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-subtle uppercase">Nome Real</label>
-                  <Input
-                    placeholder="Ex: Lucas Souza"
-                    value={newPlayer.nome}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, nome: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-subtle uppercase">WhatsApp (com DDD) *</label>
-                  <Input
-                    placeholder="Ex: (11) 99999-9999"
-                    value={newPlayer.whatsapp}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, whatsapp: maskPhone(e.target.value) })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-subtle uppercase">Função</label>
-                  <select
-                    value={newPlayer.funcao}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, funcao: e.target.value })}
-                    className="w-full h-10 px-3 rounded-lg bg-card-2 border border-white/10 text-xs text-white"
-                  >
-                    {FUNCOES.map((f) => (
-                      <option key={f.value} value={f.value}>
-                        {f.label} ({f.badge})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-subtle uppercase">Patente Atual</label>
-                  <select
-                    value={newPlayer.patenteAtual}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, patenteAtual: e.target.value })}
-                    className="w-full h-10 px-3 rounded-lg bg-card-2 border border-white/10 text-xs text-white"
-                  >
-                    {PATENTES_LATAM.map((p) => (
-                      <option key={p.value} value={p.value}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-subtle uppercase">Horário Disponível</label>
-                <Input
-                  placeholder="Ex: 19h às 23h"
-                  value={newPlayer.horarioDisponivel}
-                  onChange={(e) => setNewPlayer({ ...newPlayer, horarioDisponivel: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-subtle uppercase">Nota Interna da Staff</label>
-                <Input
-                  placeholder="Ex: Chamado via Discord pelo Capitão, já testado."
-                  value={newPlayer.staffNote}
-                  onChange={(e) => setNewPlayer({ ...newPlayer, staffNote: e.target.value })}
-                />
-              </div>
-
-              <div className="mt-2 flex gap-2">
-                <Button type="submit" size="lg" className="flex-1">
-                  Cadastrar na Staff
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="lg"
-                  onClick={() => setIsAddModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-    </main>
+      {/* ── Modals ── */}
+      <AnimatePresence>
+        {waCandidate && (
+          <WhatsAppModal
+            key="wa-modal"
+            candidate={waCandidate}
+            onClose={() => setWaCandidate(null)}
+            onApprove={() => approveViaWa(waCandidate.id)}
+          />
+        )}
+        {showAddModal && (
+          <AddPlayerModal
+            key="add-modal"
+            onClose={() => setShowAddModal(false)}
+            onAdd={addCandidate}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
+}
+
+// ─── Root Component ───────────────────────────────────────────────────────────
+
+function AdminPage() {
+  const [authed, setAuthed] = useState(() => isSessionValid());
+
+  // Expose displayValue to suppress unused import warning (it's part of required imports)
+  void displayValue;
+  void maskPhone;
+  void maskPlayerId;
+  void SIM_NAO;
+  void HORAS_DISPONIBILIDADE;
+
+  if (!authed) {
+    return <LoginScreen onLogin={() => setAuthed(true)} />;
+  }
+  return <Dashboard onLogout={() => setAuthed(false)} />;
 }
