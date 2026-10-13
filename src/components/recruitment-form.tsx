@@ -1,4 +1,3 @@
-import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock, Loader2, Send, Trophy, Users } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -19,6 +18,9 @@ import {
   SIM_NAO,
   loadDraft,
   recruitmentSchema,
+  step1Schema,
+  step2Schema,
+  step3Schema,
   saveDraft,
   type RecruitmentInput,
   type RecruitmentValues,
@@ -36,18 +38,18 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
   const reduce = useReducedMotion();
   const [step, setStep] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const {
     register,
     control,
-    handleSubmit,
     setValue,
-    trigger,
+    setError,
     clearErrors,
     watch,
     reset,
-    formState: { errors, isSubmitting },
-  } = useForm<RecruitmentInput, unknown, RecruitmentValues>({
-    resolver: zodResolver(recruitmentSchema),
+    formState: { errors },
+  } = useForm<RecruitmentInput>({
     defaultValues,
     mode: "onSubmit",
     reValidateMode: "onChange",
@@ -66,11 +68,6 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
     saveDraft(values);
   }, [hydrated, values]);
 
-  // Limpa qualquer erro residual ao trocar de etapa
-  useEffect(() => {
-    clearErrors();
-  }, [step, clearErrors]);
-
   function onInvalid() {
     requestAnimationFrame(() => {
       const first = document.querySelector("[data-error='true']");
@@ -79,12 +76,36 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
   }
 
   async function goNext() {
-    const fields = [...FORM_STEPS[step].fields];
-    const ok = await trigger(fields);
-    if (!ok) {
-      onInvalid();
-      return;
+    const currentValues = watch();
+
+    if (step === 0) {
+      const result = step1Schema.safeParse(currentValues);
+      if (!result.success) {
+        clearErrors();
+        for (const issue of result.error.issues) {
+          const field = issue.path[0] as keyof RecruitmentInput;
+          if (field) {
+            setError(field, { type: "manual", message: issue.message });
+          }
+        }
+        onInvalid();
+        return;
+      }
+    } else if (step === 1) {
+      const result = step2Schema.safeParse(currentValues);
+      if (!result.success) {
+        clearErrors();
+        for (const issue of result.error.issues) {
+          const field = issue.path[0] as keyof RecruitmentInput;
+          if (field) {
+            setError(field, { type: "manual", message: issue.message });
+          }
+        }
+        onInvalid();
+        return;
+      }
     }
+
     clearErrors();
     playStepSound();
     setStep((current) => Math.min(current + 1, FORM_STEPS.length - 1));
@@ -110,12 +131,51 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
       await goNext();
       return;
     }
-    const ok = await trigger();
-    if (!ok) {
+
+    const currentValues = watch();
+
+    // 1. Valida estritamente os campos do Passo 3
+    const step3Result = step3Schema.safeParse(currentValues);
+    if (!step3Result.success) {
+      clearErrors();
+      for (const issue of step3Result.error.issues) {
+        const field = issue.path[0] as keyof RecruitmentInput;
+        if (field) {
+          setError(field, { type: "manual", message: issue.message });
+        }
+      }
       onInvalid();
       return;
     }
-    await handleSubmit(onSubmitted, onInvalid)(event);
+
+    // 2. Valida o formulário completo
+    const fullResult = recruitmentSchema.safeParse(currentValues);
+    if (!fullResult.success) {
+      for (const issue of fullResult.error.issues) {
+        const field = issue.path[0] as string;
+        const stepIdx = FORM_STEPS.findIndex((s) =>
+          (s.fields as readonly string[]).includes(field),
+        );
+        if (stepIdx !== -1) {
+          setStep(stepIdx);
+          setError(field as keyof RecruitmentInput, {
+            type: "manual",
+            message: issue.message,
+          });
+          break;
+        }
+      }
+      onInvalid();
+      return;
+    }
+
+    clearErrors();
+    setIsSubmitting(true);
+    try {
+      await onSubmitted(fullResult.data);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const progress = (step + 1) / FORM_STEPS.length;
@@ -193,7 +253,11 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                   id="nome"
                   autoComplete="name"
                   placeholder="Seu nome completo"
-                  {...register("nome")}
+                  {...register("nome", {
+                    onChange: () => {
+                      if (errors.nome) clearErrors("nome");
+                    },
+                  })}
                 />
               </Field>
               <Field number={2} label="Idade" htmlFor="idade" error={errors.idade?.message}>
@@ -206,6 +270,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     onChange: (event) => {
                       const digits = event.target.value.replace(/\D/g, "").slice(0, 3);
                       setValue("idade", digits, { shouldValidate: false });
+                      if (errors.idade) clearErrors("idade");
                     },
                   })}
                 />
@@ -214,7 +279,11 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 <Input
                   id="nick"
                   placeholder="Seu nick exato no jogo"
-                  {...register("nick")}
+                  {...register("nick", {
+                    onChange: () => {
+                      if (errors.nick) clearErrors("nick");
+                    },
+                  })}
                 />
               </Field>
               <Field
@@ -233,6 +302,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       onChange: (event) => {
                         const digits = maskPlayerId(event.target.value);
                         setValue("idConta", digits, { shouldValidate: false });
+                        if (errors.idConta) clearErrors("idConta");
                       },
                     })}
                   />
@@ -253,7 +323,11 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                 <Input
                   id="cidadeEstado"
                   placeholder="Ex: São Paulo - SP"
-                  {...register("cidadeEstado")}
+                  {...register("cidadeEstado", {
+                    onChange: () => {
+                      if (errors.cidadeEstado) clearErrors("cidadeEstado");
+                    },
+                  })}
                 />
               </Field>
               <Field number={6} label="WhatsApp (com DDD)" htmlFor="whatsapp" error={errors.whatsapp?.message}>
@@ -267,6 +341,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     onChange: (event) => {
                       const masked = maskPhone(event.target.value);
                       setValue("whatsapp", masked, { shouldValidate: false });
+                      if (errors.whatsapp) clearErrors("whatsapp");
                     },
                   })}
                 />
@@ -289,7 +364,10 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     <OptionCards
                       name={field.name}
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(val) => {
+                        field.onChange(val);
+                        if (errors.funcao) clearErrors("funcao");
+                      }}
                       options={FUNCOES}
                     />
                   )}
@@ -308,7 +386,10 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     <OptionCards
                       name={field.name}
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(val) => {
+                        field.onChange(val);
+                        if (errors.patenteAtual) clearErrors("patenteAtual");
+                      }}
                       options={PATENTES_LATAM}
                     />
                   )}
@@ -326,7 +407,10 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                     <OptionCards
                       name={field.name}
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(val) => {
+                        field.onChange(val);
+                        if (errors.experienciaCompetitiva) clearErrors("experienciaCompetitiva");
+                      }}
                       options={SIM_NAO}
                       columns="stack"
                     />
@@ -354,7 +438,11 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                         rows={3}
                         maxLength={800}
                         placeholder="Campeonatos disputados, guildas anteriores, line-ups, funções..."
-                        {...register("experienciaDescricao")}
+                        {...register("experienciaDescricao", {
+                          onChange: () => {
+                            if (errors.experienciaDescricao) clearErrors("experienciaDescricao");
+                          },
+                        })}
                       />
                       <div className="flex justify-end mt-1">
                         <span className="text-[11px] text-subtle">
@@ -384,7 +472,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                       value={field.value}
                       onChange={(val) => {
                         field.onChange(val);
-                        clearErrors("tempoDisponivel");
+                        if (errors.tempoDisponivel) clearErrors("tempoDisponivel");
                       }}
                       options={HORAS_DISPONIBILIDADE}
                       columns="stack"
@@ -403,7 +491,7 @@ export function RecruitmentForm({ onSubmitted }: RecruitmentFormProps) {
                   placeholder="Ex: 19h às 23h (Treinos e Ranqueadas)"
                   {...register("horarioDisponivel", {
                     onChange: () => {
-                      clearErrors("horarioDisponivel");
+                      if (errors.horarioDisponivel) clearErrors("horarioDisponivel");
                     },
                   })}
                 />

@@ -96,16 +96,12 @@ const oneOf = (options: readonly { value: string }[], message: string) =>
   required(message).refine((value) => options.some((option) => option.value === value), message);
 
 function isValidSchedule(value: string): boolean {
-  const text = value.trim().toLowerCase();
-  if (!/^[\d\s:hàáâãéêíóôõúüç-]+$/i.test(text)) return false;
-
-  const matches = [...text.matchAll(/(?:^|\D)(\d{1,2})(?::([0-5]\d))?\s*h?/g)];
-  if (!matches.length) return false;
-
-  return matches.every((match) => Number(match[1]) >= 0 && Number(match[1]) <= 23);
+  const text = value.trim();
+  if (text.length < 2 || text.length > 80) return false;
+  return /[a-zA-Z0-9À-ÿ]/.test(text);
 }
 
-export const recruitmentSchema = z.object({
+export const step1Schema = z.object({
   nome: required("Informe seu nome")
     .min(2, "Informe seu nome completo")
     .regex(/^[\p{L}]+(?:[\s'-][\p{L}]+)*$/u, "O nome deve conter apenas letras e espaços"),
@@ -129,15 +125,25 @@ export const recruitmentSchema = z.object({
       const digits = value.replace(/\D/g, "");
       return digits.length >= 10 && digits.length <= 13;
     }, "Informe um WhatsApp válido"),
+});
+
+export const step2Schema = z.object({
   funcao: oneOf(FUNCOES, "Selecione uma função válida"),
   patenteAtual: oneOf(PATENTES_LATAM, "Selecione uma patente válida"),
   experienciaCompetitiva: oneOf(SIM_NAO, "Selecione uma opção válida"),
   experienciaDescricao: z.string().trim().max(800, "Descrição muito longa").optional(),
+});
+
+export const step3Schema = z.object({
   tempoDisponivel: oneOf(HORAS_DISPONIBILIDADE, "Selecione uma disponibilidade válida"),
   horarioDisponivel: required("Informe seu horário disponível para jogar")
     .max(80, "Horário muito longo")
     .refine(isValidSchedule, "Informe horários válidos, por exemplo: 19h às 23h"),
 });
+
+export const recruitmentSchema = step1Schema.merge(step2Schema).merge(step3Schema);
+
+export const STEP_SCHEMAS = [step1Schema, step2Schema, step3Schema] as const;
 
 export type RecruitmentInput = z.input<typeof recruitmentSchema>;
 export type RecruitmentValues = z.output<typeof recruitmentSchema>;

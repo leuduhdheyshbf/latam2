@@ -127,16 +127,41 @@ function AdminPage() {
     }
   }, []);
 
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (isLocked) {
+      toast.error("Acesso bloqueado temporariamente por excesso de tentativas. Aguarde.");
+      return;
+    }
+
     const pass = passwordInput.trim().toLowerCase();
-    // Aceita senhas simples para a liderança ou qualquer uma das comuns
-    if (pass === "admin" || pass === "souza" || pass === "latam" || pass === "123456" || pass === "") {
+    if (!pass) {
+      toast.error("Informe a chave de segurança.");
+      return;
+    }
+
+    const VALID_KEYS = ["latam2026", "souza2026", "adminlatam", "souza", "admin"];
+    if (VALID_KEYS.includes(pass)) {
       sessionStorage.setItem("latam-admin-auth", "true");
       setIsAuthenticated(true);
+      setFailedAttempts(0);
       toast.success("Acesso da liderança autorizado!");
     } else {
-      toast.error("Senha incorreta. (Dica: digite 'admin' ou 'souza')");
+      const next = failedAttempts + 1;
+      setFailedAttempts(next);
+      if (next >= 5) {
+        setIsLocked(true);
+        toast.error("Limite de 5 tentativas excedido. Bloqueado por 60 segundos.");
+        setTimeout(() => {
+          setIsLocked(false);
+          setFailedAttempts(0);
+        }, 60000);
+      } else {
+        toast.error(`Chave incorreta. Tentativa ${next} de 5.`);
+      }
     }
   }
 
@@ -240,17 +265,19 @@ function AdminPage() {
             <form onSubmit={handleLogin} className="mt-6 flex flex-col gap-3.5">
               <Input
                 type="password"
-                placeholder="Digite sua senha de ADM (ex: admin)"
+                placeholder="Digite a chave de segurança..."
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
+                disabled={isLocked}
                 autoFocus
                 className="text-center font-mono tracking-widest text-base"
               />
-              <Button type="submit" size="lg" className="w-full">
-                Entrar no Painel
+              <Button type="submit" size="lg" className="w-full" disabled={isLocked}>
+                {isLocked ? "Acesso Bloqueado Temporariamente" : "Entrar no Painel"}
               </Button>
-              <p className="text-[11px] text-subtle mt-1">
-                Dica de acesso rápido: digite <strong>admin</strong> ou <strong>souza</strong>
+              <p className="text-[11px] text-subtle mt-1 flex items-center justify-center gap-1.5">
+                <ShieldCheck className="size-3.5 text-accent" />
+                Ambiente restrito e monitorado da liderança LATAM 友
               </p>
             </form>
           </div>
