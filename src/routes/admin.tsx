@@ -1785,94 +1785,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
 
-            {/* Contextual Action Buttons */}
-            {activeSection === "candidaturas" && (
-              <>
-                <button
-                  onClick={exportCsv}
-                  className="rounded-xl border border-white/10 bg-[#121821] p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground cursor-pointer"
-                  title="Exportar CSV"
-                >
-                  <Download size={16} />
-                </button>
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
-                  onClick={() => {
-                    playClickSound();
-                    setShowAddModal(true);
-                  }}
-                >
-                  <ClipboardPaste size={14} />
-                  <span className="hidden sm:inline">Colar Ficha</span>
-                  <span className="sm:hidden">Colar</span>
-                </button>
-              </>
-            )}
-
-            {activeSection === "lines" && (
-              <>
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
-                  onClick={() => {
-                    playClickSound();
-                    setShowPasteLineModal(true);
-                  }}
-                >
-                  <ClipboardPaste size={14} />
-                  <span className="hidden sm:inline">Colar Ficha</span>
-                  <span className="sm:hidden">Colar</span>
-                </button>
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground px-3.5 py-2 text-xs font-semibold transition-all shadow-[0_0_15px_rgba(0,180,255,0.25)] cursor-pointer"
-                  onClick={handleAddLine}
-                >
-                  <Plus size={14} />
-                  <span className="hidden sm:inline">Nova Line</span>
-                  <span className="sm:hidden">Line</span>
-                </button>
-              </>
-            )}
-
-            {activeSection === "membros" && (
-              <>
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
-                  onClick={() => {
-                    playClickSound();
-                    setShowPasteMemberModal(true);
-                  }}
-                >
-                  <ClipboardPaste size={14} />
-                  <span className="hidden sm:inline">Colar Ficha</span>
-                  <span className="sm:hidden">Colar</span>
-                </button>
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground px-3.5 py-2 text-xs font-semibold transition-all shadow-[0_0_15px_rgba(0,180,255,0.25)] cursor-pointer"
-                  onClick={handleAddMember}
-                >
-                  <UserPlus size={14} />
-                  <span className="hidden sm:inline">Novo Membro</span>
-                  <span className="sm:hidden">Membro</span>
-                </button>
-              </>
-            )}
-
-            {activeSection === "advertencias" && (
-              <Button
-                className="gap-1.5 py-2 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/40 font-semibold rounded-xl cursor-pointer"
-                onClick={() => {
-                  playClickSound();
-                  setInitialWarnNick(undefined);
-                  setShowAddWarningModal(true);
-                }}
-              >
-                <Plus size={14} />
-                <span className="hidden sm:inline">Nova Advertência</span>
-                <span className="sm:hidden">Advertir</span>
-              </Button>
-            )}
-
-
             {/* Logout */}
             <button
               onClick={() => {
@@ -2070,6 +1982,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <option value="oldest">Mais antigos</option>
                 <option value="nick">Nick (A-Z)</option>
               </select>
+
+              {/* Export CSV Button */}
+              <button
+                onClick={exportCsv}
+                className="rounded-xl border border-white/10 bg-[#121821] p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground cursor-pointer shrink-0"
+                title="Exportar CSV"
+              >
+                <Download size={15} />
+              </button>
 
               {/* Colar Ficha Button */}
               <button
