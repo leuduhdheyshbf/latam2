@@ -27,8 +27,11 @@ export type CandidateRecord = RecruitmentValues & {
   staffNote?: string;
 };
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const DEFAULT_SUPABASE_URL = "https://djjzihkwtkiehlugxoae.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_65rDvc1MGSpLgoXyytF9xw_uFh-WvTt";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -42,7 +45,7 @@ let clientInstance: SupabaseClient | null = null;
 export function getSupabase(): SupabaseClient | null {
   if (!isSupabaseConfigured) return null;
   if (!clientInstance) {
-    clientInstance = createClient(supabaseUrl!, supabaseAnonKey!);
+    clientInstance = createClient(supabaseUrl, supabaseAnonKey);
   }
   return clientInstance;
 }

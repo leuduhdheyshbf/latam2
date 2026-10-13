@@ -278,42 +278,16 @@ export async function submitRecruitment(values: RecruitmentValues): Promise<void
     website: "",
   };
 
-  // 1. Se o Supabase estiver configurado, envia diretamente para o banco
+  // 1. Envia para o Supabase
   if (isSupabaseConfigured) {
     try {
       await insertCandidateSupabase(values);
     } catch (err) {
       console.error("[Recruitment] Falha ao enviar para Supabase:", err);
-      throw new Error(err instanceof Error ? err.message : "Erro ao salvar no banco Supabase.");
-    }
-  } else if (RECRUITMENT_API_URL) {
-    // 2. Se houver uma API webhook alternativa configurada
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), 20000);
-    try {
-      const response = await fetch(RECRUITMENT_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      const result = (await response.json().catch(() => null)) as
-        | { success?: boolean; error?: string }
-        | null;
-
-      if (!response.ok || !result?.success) {
-        throw new Error(result?.error || "O servidor recusou os dados. Confira o formulário.");
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw new Error("Tempo esgotado. Confira a conexão e tente de novo.");
-      }
-      throw new Error("Erro ao enviar. Tente novamente em instantes.");
-    } finally {
-      window.clearTimeout(timer);
+      throw new Error(err instanceof Error ? err.message : "Erro ao salvar no banco de dados.");
     }
   }
+
 
   // 3. Salva cópia local para visualização instantânea no Painel do Administrador (Sou ADM)
   if (typeof window !== "undefined") {

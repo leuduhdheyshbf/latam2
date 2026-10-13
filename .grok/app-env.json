@@ -1,6 +1,5 @@
 {
   "VITE_AUTH_ENABLED": "false",
-  "VITE_RECRUITMENT_API_URL": "https://latam-api.nyxaria.workers.dev",
   "VITE_SUPABASE_URL": "https://djjzihkwtkiehlugxoae.supabase.co",
   "VITE_SUPABASE_ANON_KEY": "sb_publishable_65rDvc1MGSpLgoXyytF9xw_uFh-WvTt",
   "deploy": {
