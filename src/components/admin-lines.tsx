@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Check,
+  ClipboardPaste,
   Clock,
   Copy,
   Crown,
@@ -530,6 +531,45 @@ export function AssignSlotModal({
     onAssign(manualNick.trim(), manualId.trim() || undefined);
   }
 
+  async function handlePasteIntoSlot() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      const clean = text.replace(/[*_#~]/g, "");
+      const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean);
+      let nick = "";
+      let idConta = "";
+      for (const line of lines) {
+        const lower = line.toLowerCase();
+        if (lower.startsWith("nick:") || lower.startsWith("nickname:")) {
+          nick = line.split(/:(.+)/)[1]?.trim() || "";
+        } else if (
+          lower.startsWith("id:") ||
+          lower.startsWith("id da conta:") ||
+          lower.startsWith("id free fire:")
+        ) {
+          idConta = line.split(/:(.+)/)[1]?.replace(/\D/g, "") || "";
+        }
+      }
+      if (!idConta) {
+        const idMatch = clean.match(/\b(\d{7,12})\b/);
+        if (idMatch) idConta = idMatch[1];
+      }
+      if (!nick) {
+        nick = lines[0]?.slice(0, 24) || clean.trim().slice(0, 24);
+      }
+      if (nick) setManualNick(nick);
+      if (idConta) setManualId(idConta);
+      playApproveSound();
+      toast.success("Dados colados no slot!");
+    } catch {
+      toast.error("Permissão de área de transferência necessária.");
+    }
+  }
+
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -712,10 +752,44 @@ export function AssignSlotModal({
         {/* Tab 3: Manual Input */}
         {tab === "manual" && (
           <form onSubmit={handleManualSubmit} className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl border border-accent/25 bg-accent/5 p-2.5">
+              <div className="flex items-center gap-2">
+                <ClipboardPaste size={15} className="text-accent shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-silver">Colar Ficha do Jogador</p>
+                  <p className="text-[10px] text-subtle">Extrai Nick e ID da área de transferência</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handlePasteIntoSlot}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent hover:bg-accent/25 transition-colors cursor-pointer"
+              >
+                <ClipboardPaste size={12} />
+                Colar
+              </button>
+            </div>
+
             <div>
-              <label className="block text-xs text-subtle mb-1">
-                Nick do Jogador *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-subtle">Nick do Jogador *</label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      if (text && text.trim()) {
+                        setManualNick(text.trim().slice(0, 24));
+                        toast.success("Nick colado!");
+                      }
+                    } catch {}
+                  }}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className="w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none"
                 placeholder="Ex: LATAM 友 RECRUTA"
@@ -725,9 +799,26 @@ export function AssignSlotModal({
               />
             </div>
             <div>
-              <label className="block text-xs text-subtle mb-1">
-                ID Free Fire (Opcional)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-subtle">ID Free Fire (Opcional)</label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      const digits = text.replace(/\D/g, "");
+                      if (digits) {
+                        setManualId(digits);
+                        toast.success("ID colado!");
+                      }
+                    } catch {}
+                  }}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className="w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none"
                 placeholder="Ex: 123456789"

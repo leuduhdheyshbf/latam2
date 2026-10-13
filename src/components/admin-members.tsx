@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { maskPhone, maskPlayerId } from "@/lib/masks";
-import { FUNCOES, PATENTES_LATAM } from "@/lib/recruitment";
+import { FUNCOES, PATENTES_LATAM, GUILD_NAME, GUILD_MARK } from "@/lib/recruitment";
 import { playApproveSound, playClickSound, playDenySound } from "@/lib/sound";
 import {
   CARGO_CONFIG,
@@ -102,6 +102,30 @@ export function MembrosView({
     setCopiedId(id);
     toast.info("ID copiado!");
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  function copyMemberFicha(m: GuildMember) {
+    playClickSound();
+    const line = lines.find((l) => l.id === m.lineId);
+    const text = [
+      `*${GUILD_NAME}${GUILD_MARK} — Membro Oficial*`,
+      "",
+      `*Nick:* ${m.nick}`,
+      m.nome ? `*Nome:* ${m.nome}` : "",
+      `*ID da Conta:* ${m.idConta}`,
+      m.whatsapp ? `*WhatsApp:* ${m.whatsapp}` : "",
+      `*Cargo:* ${CARGO_CONFIG[m.cargo]?.label || m.cargo}`,
+      `*Função:* ${m.funcao}`,
+      `*Patente:* ${m.patente}`,
+      line ? `*Line:* ${line.nome} (${line.tag})` : "",
+      m.entrouEm ? `*Entrou em:* ${m.entrouEm}` : "",
+      m.nota ? `*Nota:* ${m.nota}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    void navigator.clipboard.writeText(text);
+    toast.success(`Ficha de ${m.nick} copiada!`);
   }
 
   return (
@@ -343,7 +367,15 @@ export function MembrosView({
                     <span className="text-xs text-subtle">Sem WhatsApp</span>
                   )}
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => copyMemberFicha(m)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-[#121821] px-2 py-1 text-xs text-silver hover:border-accent/40 hover:text-accent transition-colors"
+                      title="Copiar ficha do membro"
+                    >
+                      <Copy size={12} />
+                      <span className="hidden sm:inline">Copiar</span>
+                    </button>
                     <button
                       onClick={() => {
                         playClickSound();
@@ -446,6 +478,25 @@ export function MemberModal({
     }
   }
 
+  async function pasteSpecificField(
+    field: keyof typeof form,
+    transform?: (val: string) => string,
+  ) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      const val = transform ? transform(text.trim()) : text.trim();
+      setForm((prev) => ({ ...prev, [field]: val }));
+      playApproveSound();
+      toast.success("Texto colado!");
+    } catch {
+      toast.error("Permissão de área de transferência necessária.");
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.nick.trim() || !form.idConta.trim()) {
@@ -485,7 +536,7 @@ export function MemberModal({
 
   const fieldClass =
     "w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none";
-  const labelClass = "block text-xs text-subtle mb-1";
+  const labelClass = "text-xs text-subtle";
 
   return (
     <motion.div
@@ -506,7 +557,7 @@ export function MemberModal({
       >
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-widest text-accent">
+            <p className="text-xs uppercase tracking-widest text-accent font-semibold">
               Roster Oficial
             </p>
             <h3 className="font-display text-2xl text-silver">
@@ -514,17 +565,6 @@ export function MemberModal({
             </h3>
           </div>
           <div className="flex items-center gap-2">
-            {!initialData?.id && (
-              <button
-                type="button"
-                onClick={handlePasteIntoForm}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 cursor-pointer"
-                title="Colar dados da área de transferência e preencher formulário"
-              >
-                <ClipboardPaste size={13} />
-                <span>Colar Ficha</span>
-              </button>
-            )}
             <button
               onClick={onClose}
               className="rounded-lg p-1.5 text-subtle hover:text-foreground"
@@ -535,9 +575,38 @@ export function MemberModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Banner de colar ficha completa */}
+          <div className="flex items-center justify-between rounded-xl border border-accent/25 bg-accent/5 p-2.5">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste size={15} className="text-accent shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-silver">Colar Ficha do WhatsApp / Discord</p>
+                <p className="text-[10px] text-subtle">Preenche todos os campos em 1 clique</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handlePasteIntoForm}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent/25 transition-colors cursor-pointer"
+            >
+              <ClipboardPaste size={12} />
+              Colar Tudo
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Nick no Jogo *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>Nick no Jogo *</label>
+                <button
+                  type="button"
+                  onClick={() => pasteSpecificField("nick")}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className={fieldClass}
                 placeholder="LATAM 友 NICK"
@@ -546,7 +615,17 @@ export function MemberModal({
               />
             </div>
             <div>
-              <label className={labelClass}>ID Free Fire *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>ID Free Fire *</label>
+                <button
+                  type="button"
+                  onClick={() => pasteSpecificField("idConta", maskPlayerId)}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className={fieldClass}
                 placeholder="123456789"
@@ -563,7 +642,17 @@ export function MemberModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Nome Real</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>Nome Real</label>
+                <button
+                  type="button"
+                  onClick={() => pasteSpecificField("nome")}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className={fieldClass}
                 placeholder="Nome do jogador"
@@ -572,7 +661,17 @@ export function MemberModal({
               />
             </div>
             <div>
-              <label className={labelClass}>WhatsApp</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>WhatsApp</label>
+                <button
+                  type="button"
+                  onClick={() => pasteSpecificField("whatsapp", maskPhone)}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className={fieldClass}
                 placeholder="(11) 9xxxx-xxxx"
