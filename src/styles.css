@@ -55,10 +55,19 @@
 }
 
 @layer base {
+  :root,
   html {
+    color-scheme: dark;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
+  }
+
+  select,
+  option,
+  optgroup {
+    background-color: #121821;
+    color: #e8eef6;
   }
 
   html,

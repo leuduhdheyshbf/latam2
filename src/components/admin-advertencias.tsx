@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   AlertOctagon,
   AlertTriangle,
+  Check,
   CheckCircle2,
+  ChevronDown,
+  Clock,
   Copy,
   Filter,
   Plus,
@@ -12,8 +15,10 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Swords,
   Trash2,
   Undo2,
+  Users,
   UserX,
   X,
   MessageCircle,
@@ -61,6 +66,57 @@ export function formatWhatsAppWarning(
     .filter(Boolean)
     .join("\n");
 }
+
+export const MOTIVO_INFO_MAP: Record<
+  string,
+  { label: string; desc: string; icon: typeof Swords }
+> = {
+  "Falta injustificada em Treino Oficial": {
+    label: "Falta em Treino",
+    desc: "Não compareceu ao treino oficial",
+    icon: Swords,
+  },
+  "Atraso recorrente nos horários marcados": {
+    label: "Atraso Recorrente",
+    desc: "Atrasos frequentes nos horários",
+    icon: Clock,
+  },
+  "Toxicidade ou desrespeito em call/chat": {
+    label: "Toxicidade em Call/Chat",
+    desc: "Falta de respeito ou ofensas",
+    icon: MessageCircle,
+  },
+  "Descumprimento direto de ordem do Capitão": {
+    label: "Ordem do Capitão",
+    desc: "Desobediência a calls e táticas",
+    icon: ShieldAlert,
+  },
+  "Não atingiu a meta semanal de pontuação/atividade": {
+    label: "Meta Semanal",
+    desc: "Atividade abaixo do mínimo exigido",
+    icon: AlertOctagon,
+  },
+  "Ausência prolongada sem aviso prévio à Staff": {
+    label: "Ausência sem Aviso",
+    desc: "Inatividade sem justificativa",
+    icon: UserX,
+  },
+  "Uso indevido da Tag/Nome da Guilda em público": {
+    label: "Uso Indevido da Tag",
+    desc: "Manchou a imagem da guilda",
+    icon: Shield,
+  },
+  "Conduta antiesportiva em sala personalizada": {
+    label: "Conduta Antiesportiva",
+    desc: "Atitude antijogo em salas",
+    icon: AlertTriangle,
+  },
+  "Outro motivo personalizado": {
+    label: "Outro Motivo",
+    desc: "Digitar motivo personalizado",
+    icon: Plus,
+  },
+};
 
 type WarningFilter = "todas" | "ativas" | "criticas" | "revogadas";
 
@@ -502,16 +558,19 @@ export function AddWarningModal({
   onSave,
 }: AddWarningModalProps) {
   const [selectedNick, setSelectedNick] = useState(initialMemberNick || (members[0]?.nick ?? ""));
+  const [openMemberDropdown, setOpenMemberDropdown] = useState(false);
   const [customNick, setCustomNick] = useState("");
   const [isManualNick, setIsManualNick] = useState(members.length === 0);
   const [idConta, setIdConta] = useState(
-    members.find((m) => m.nick === initialMemberNick)?.idConta ?? ""
+    members.find((m) => m.nick === initialMemberNick)?.idConta ?? (members[0]?.idConta ?? "")
   );
   const [grau, setGrau] = useState<WarningGrau>("leve");
   const [motivoPreset, setMotivoPreset] = useState<string>(WARNING_MOTIVOS_PRESET[0]);
   const [motivoCustom, setMotivoCustom] = useState("");
   const [descricao, setDescricao] = useState("");
   const [aplicadaPor, setAplicadaPor] = useState("Liderança LATAM");
+
+  const selectedMember = members.find((m) => m.nick === selectedNick);
 
   function handleMemberSelect(nick: string) {
     setSelectedNick(nick);
@@ -599,7 +658,7 @@ export function AddWarningModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-subtle hover:bg-white/5 hover:text-foreground"
+            className="rounded-lg p-1 text-subtle hover:bg-white/5 hover:text-foreground cursor-pointer transition-colors"
           >
             <X size={18} />
           </button>
@@ -616,7 +675,7 @@ export function AddWarningModal({
                 <button
                   type="button"
                   onClick={() => setIsManualNick(!isManualNick)}
-                  className="text-[11px] text-accent hover:underline"
+                  className="text-[11px] text-accent hover:underline cursor-pointer"
                 >
                   {isManualNick ? "Selecionar da Guilda" : "Digitar Manualmente"}
                 </button>
@@ -624,23 +683,77 @@ export function AddWarningModal({
             </div>
 
             {!isManualNick && members.length > 0 ? (
-              <select
-                value={selectedNick}
-                onChange={(e) => handleMemberSelect(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm text-silver focus:border-red-500/60 focus:outline-none"
-              >
-                {members.map((m) => (
-                  <option key={m.id} value={m.nick} className="bg-[#0e131b]">
-                    {m.nick} {m.nome ? `(${m.nome})` : ""} — {m.cargo}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenMemberDropdown(!openMemberDropdown)}
+                  className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-[#121821] px-3.5 py-2.5 text-sm text-silver hover:border-white/20 hover:text-white transition-all cursor-pointer focus:border-red-500/60 focus:outline-none"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Users size={15} className="text-red-400 shrink-0" />
+                    <span className="font-medium truncate">
+                      {selectedMember
+                        ? `${selectedMember.nick} ${selectedMember.nome ? `(${selectedMember.nome})` : ""} — ${selectedMember.cargo}`
+                        : "Selecione um jogador..."}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    className={`text-subtle transition-transform duration-200 shrink-0 ml-2 ${
+                      openMemberDropdown ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {openMemberDropdown && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-20"
+                      onClick={() => setOpenMemberDropdown(false)}
+                    />
+                    <div className="absolute top-full left-0 right-0 mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-white/10 bg-[#121821] shadow-2xl z-30 p-1 divide-y divide-white/5">
+                      {members.map((m) => {
+                        const isSelected = m.nick === selectedNick;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              handleMemberSelect(m.nick);
+                              setOpenMemberDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                              isSelected
+                                ? "bg-red-500/20 text-white font-semibold"
+                                : "text-zinc-300 hover:bg-white/5 hover:text-white"
+                            }`}
+                          >
+                            <div className="truncate">
+                              <span className="font-semibold">{m.nick}</span>
+                              {m.nome && (
+                                <span className="text-subtle ml-1">
+                                  ({m.nome})
+                                </span>
+                              )}
+                              <span className="text-[11px] text-zinc-400 ml-2">
+                                [{m.cargo}]
+                              </span>
+                            </div>
+                            {isSelected && (
+                              <Check size={14} className="text-red-400 shrink-0 ml-2" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             ) : (
               <Input
                 placeholder="Ex: LATAM・CORINGA"
                 value={customNick}
                 onChange={(e) => setCustomNick(e.target.value)}
-                className="bg-black/50 border-white/10 text-silver focus:border-red-500/60"
+                className="bg-[#121821] border-white/10 text-silver focus:border-red-500/60 rounded-xl"
                 required
               />
             )}
@@ -655,7 +768,7 @@ export function AddWarningModal({
               placeholder="Ex: 123456789"
               value={idConta}
               onChange={(e) => setIdConta(e.target.value)}
-              className="bg-black/50 border-white/10 text-silver focus:border-red-500/60 font-mono"
+              className="bg-[#121821] border-white/10 text-silver focus:border-red-500/60 font-mono rounded-xl"
             />
           </div>
 
@@ -681,14 +794,14 @@ export function AddWarningModal({
                       playClickSound();
                       setGrau(g.id);
                     }}
-                    className={`flex flex-col items-center justify-center rounded-xl border p-2.5 transition-all text-center ${
+                    className={`flex flex-col items-center justify-center rounded-xl border p-2.5 transition-all text-center cursor-pointer ${
                       active
                         ? g.id === "grave"
-                          ? "border-red-500 bg-red-500/20 text-red-300 shadow-sm"
+                          ? "border-red-500 bg-red-500/20 text-red-300 shadow-[0_0_15px_rgba(239,68,68,0.25)] ring-1 ring-red-500/50"
                           : g.id === "media"
-                          ? "border-orange-500 bg-orange-500/20 text-orange-300 shadow-sm"
-                          : "border-amber-500 bg-amber-500/20 text-amber-300 shadow-sm"
-                        : "border-white/5 bg-black/40 text-subtle hover:border-white/20 hover:text-foreground"
+                          ? "border-orange-500 bg-orange-500/20 text-orange-300 shadow-[0_0_15px_rgba(249,115,22,0.25)] ring-1 ring-orange-500/50"
+                          : "border-amber-500 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/50"
+                        : "border-white/10 bg-[#121821] text-zinc-400 hover:border-white/20 hover:bg-[#161f2c] hover:text-white"
                     }`}
                   >
                     <span className="text-xs font-bold">{g.label}</span>
@@ -699,29 +812,67 @@ export function AddWarningModal({
             </div>
           </div>
 
-          {/* Motivo */}
+          {/* Motivo da Infração */}
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+            <label className="block text-xs font-semibold text-zinc-300 mb-2">
               Motivo da Infração *
             </label>
-            <select
-              value={motivoPreset}
-              onChange={(e) => setMotivoPreset(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/50 px-3 py-2.5 text-sm text-silver focus:border-red-500/60 focus:outline-none mb-2"
-            >
-              {WARNING_MOTIVOS_PRESET.map((m) => (
-                <option key={m} value={m} className="bg-[#0e131b]">
-                  {m}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {WARNING_MOTIVOS_PRESET.map((m) => {
+                const isSelected = motivoPreset === m;
+                const info = MOTIVO_INFO_MAP[m] ?? {
+                  label: m,
+                  desc: "",
+                  icon: ShieldAlert,
+                };
+                const IconComponent = info.icon;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      playClickSound();
+                      setMotivoPreset(m);
+                    }}
+                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-red-500/70 bg-red-500/15 text-white ring-1 ring-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                        : "border-white/10 bg-[#121821] text-zinc-300 hover:border-white/20 hover:bg-[#161f2c] hover:text-white"
+                    }`}
+                  >
+                    <div
+                      className={`size-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                        isSelected
+                          ? "bg-red-500/30 text-red-300"
+                          : "bg-white/5 text-zinc-400"
+                      }`}
+                    >
+                      <IconComponent size={14} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-semibold leading-tight truncate">
+                          {info.label}
+                        </span>
+                        {isSelected && (
+                          <Check size={12} className="text-red-400 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-[10px] text-zinc-400 line-clamp-1 mt-0.5 leading-tight">
+                        {info.desc}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
             {motivoPreset === "Outro motivo personalizado" && (
               <Input
                 placeholder="Descreva o motivo de forma resumida..."
                 value={motivoCustom}
                 onChange={(e) => setMotivoCustom(e.target.value)}
-                className="bg-black/50 border-white/10 text-silver focus:border-red-500/60 mt-2"
+                className="bg-[#121821] border-white/10 text-silver focus:border-red-500/60 rounded-xl mt-2.5"
                 required
               />
             )}
@@ -737,7 +888,7 @@ export function AddWarningModal({
               placeholder="Ex: Faltou no treino das 21h sem avisar os companheiros de line..."
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/50 p-3 text-xs text-silver placeholder:text-subtle/50 focus:border-red-500/60 focus:outline-none"
+              className="w-full rounded-xl border border-white/10 bg-[#121821] p-3 text-xs text-silver placeholder:text-subtle/50 focus:border-red-500/60 focus:outline-none transition-colors"
             />
           </div>
 
@@ -750,7 +901,7 @@ export function AddWarningModal({
               placeholder="Ex: Capitão Line 1 ou Liderança LATAM"
               value={aplicadaPor}
               onChange={(e) => setAplicadaPor(e.target.value)}
-              className="bg-black/50 border-white/10 text-silver focus:border-red-500/60"
+              className="bg-[#121821] border-white/10 text-silver focus:border-red-500/60 rounded-xl"
             />
           </div>
 
@@ -760,13 +911,13 @@ export function AddWarningModal({
               type="button"
               variant="ghost"
               onClick={onClose}
-              className="text-subtle hover:text-foreground"
+              className="rounded-xl border border-white/10 bg-[#121821] text-subtle hover:text-white hover:bg-white/5 cursor-pointer px-4"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold shadow-lg shadow-red-950/40"
+              className="rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-semibold shadow-lg shadow-red-950/40 cursor-pointer px-5"
             >
               Confirmar e Aplicar
             </Button>
@@ -827,7 +978,7 @@ export function RevokeWarningModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-subtle hover:bg-white/5 hover:text-foreground"
+            className="rounded-lg p-1 text-subtle hover:bg-white/5 hover:text-foreground cursor-pointer transition-colors"
           >
             <X size={18} />
           </button>
@@ -849,7 +1000,7 @@ export function RevokeWarningModal({
               placeholder="Ex: Justificou motivo de força maior com atestado / cumpriu a meta compensatória..."
               value={justificativa}
               onChange={(e) => setJustificativa(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-black/50 p-3 text-xs text-silver placeholder:text-subtle/50 focus:border-emerald-500/60 focus:outline-none"
+              className="w-full rounded-xl border border-white/10 bg-[#121821] p-3 text-xs text-silver placeholder:text-subtle/50 focus:border-emerald-500/60 focus:outline-none transition-colors"
             />
           </div>
 
@@ -858,13 +1009,13 @@ export function RevokeWarningModal({
               type="button"
               variant="ghost"
               onClick={onClose}
-              className="text-subtle hover:text-foreground"
+              className="rounded-xl border border-white/10 bg-[#121821] text-subtle hover:text-white hover:bg-white/5 cursor-pointer px-4"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-lg shadow-emerald-950/40"
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-950/40 cursor-pointer px-5"
             >
               Confirmar Revogação
             </Button>
