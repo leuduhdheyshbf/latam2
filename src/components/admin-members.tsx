@@ -26,6 +26,7 @@ import {
   type GuildLine,
   type GuildMember,
 } from "@/lib/guild";
+import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 
 type MembroFilter = "todos" | "lideranca" | "capitao" | "titular" | "reserva";
 
@@ -47,6 +48,7 @@ export function MembrosView({
   const [search, setSearch] = useState("");
   const [cargoFilter, setCargoFilter] = useState<MembroFilter>("todos");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<GuildMember | null>(null);
 
   const total = members.length;
   const titulares = members.filter(
@@ -297,8 +299,8 @@ export function MembrosView({
                     </button>
                     <button
                       onClick={() => {
-                        playDenySound();
-                        onDeleteMember(m.id);
+                        playClickSound();
+                        setMemberToDelete(m);
                       }}
                       className="rounded-lg p-1.5 text-subtle hover:bg-red-500/10 hover:text-red-400 transition-colors"
                       title="Remover da guilda"
@@ -312,6 +314,25 @@ export function MembrosView({
           })}
         </div>
       )}
+
+      {/* Modal de confirmação de exclusão */}
+      <AnimatePresence>
+        {memberToDelete && (
+          <ConfirmDeleteModal
+            isOpen={Boolean(memberToDelete)}
+            title="Remover Membro"
+            itemName={memberToDelete.nick}
+            itemDescription={`O jogador ${memberToDelete.nome || memberToDelete.nick} será removido do roster da guilda e de qualquer line.`}
+            confirmLabel="Sim, Remover Membro"
+            onClose={() => setMemberToDelete(null)}
+            onConfirm={() => {
+              playDenySound();
+              onDeleteMember(memberToDelete.id);
+              setMemberToDelete(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

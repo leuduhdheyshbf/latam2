@@ -29,6 +29,7 @@ import {
   type GuildLineSlot,
   type GuildMember,
 } from "@/lib/guild";
+import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 
 export type LineCandidate = {
   id: string;
@@ -94,6 +95,7 @@ export function LinesView({
     line: GuildLine;
     slot: GuildLineSlot;
   } | null>(null);
+  const [lineToDelete, setLineToDelete] = useState<GuildLine | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // KPIs
@@ -253,14 +255,8 @@ export function LinesView({
                       </button>
                       <button
                         onClick={() => {
-                          playDenySound();
-                          if (
-                            confirm(
-                              `Deseja realmente excluir a "${line.nome}"?`
-                            )
-                          ) {
-                            onDeleteLine(line.id);
-                          }
+                          playClickSound();
+                          setLineToDelete(line);
                         }}
                         className="rounded-lg p-2 text-subtle transition-colors hover:bg-white/5 hover:text-red-400"
                         title="Excluir Line"
@@ -438,6 +434,22 @@ export function LinesView({
                 memberId
               );
               setSelectedSlot(null);
+            }}
+          />
+        )}
+        {lineToDelete && (
+          <ConfirmDeleteModal
+            key="confirm-delete-line"
+            isOpen={Boolean(lineToDelete)}
+            title="Excluir Line"
+            itemName={lineToDelete.nome}
+            itemDescription="A line e todas as escalações associadas serão removidas do sistema."
+            confirmLabel="Sim, Excluir Line"
+            onClose={() => setLineToDelete(null)}
+            onConfirm={() => {
+              playDenySound();
+              onDeleteLine(lineToDelete.id);
+              setLineToDelete(null);
             }}
           />
         )}

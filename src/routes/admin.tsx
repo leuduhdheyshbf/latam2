@@ -66,6 +66,7 @@ import {
 } from "@/lib/supabase";
 import { MembrosView, MemberModal } from "@/components/admin-members";
 import { LinesView, AddLineModal } from "@/components/admin-lines";
+import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import {
   type GuildMember,
   type GuildLine,
@@ -123,64 +124,7 @@ function isSessionValid(): boolean {
   }
 }
 
-const DEMO: StoredCandidate[] = [
-  {
-    id: "cand-101",
-    nome: "Lucas Souza",
-    idade: "19",
-    nick: "LUK4S_FF",
-    idConta: "189420392",
-    cidadeEstado: "São Paulo - SP",
-    whatsapp: "(11) 98844-2211",
-    funcao: "rush",
-    patenteAtual: "diamente_mestre",
-    experienciaCompetitiva: "sim",
-    experienciaDescricao:
-      "Joguei camps diários pela guilda Black Dragons, foco em invasão rápida e 2v1.",
-    tempoDisponivel: "4+h",
-    horarioDisponivel: "19h às 00h",
-    submittedAt: "Hoje, 19:42",
-    status: "aprovado",
-    staffNote: "Aprovado para Line 1.",
-  },
-  {
-    id: "cand-102",
-    nome: "Gabriel Ferreira",
-    idade: "17",
-    nick: "GABRIELzx",
-    idConta: "273819402",
-    cidadeEstado: "Rio de Janeiro - RJ",
-    whatsapp: "(21) 97722-3344",
-    funcao: "granadeiro",
-    patenteAtual: "elite",
-    experienciaCompetitiva: "sim",
-    experienciaDescricao:
-      "Granadeiro com boa leitura de mapa e controle de gel. Participei da Copa FF amadora.",
-    tempoDisponivel: "2-4h",
-    horarioDisponivel: "20h às 23h30",
-    submittedAt: "Hoje, 18:15",
-    status: "pendente",
-    staffNote: "",
-  },
-  {
-    id: "cand-103",
-    nome: "Matheus Silva",
-    idade: "21",
-    nick: "M4THEUS_SNIPER",
-    idConta: "392019482",
-    cidadeEstado: "Belo Horizonte - MG",
-    whatsapp: "(31) 99123-4567",
-    funcao: "fuzileiro",
-    patenteAtual: "platina_diamente",
-    experienciaCompetitiva: "nao",
-    experienciaDescricao: "",
-    tempoDisponivel: "2-4h",
-    horarioDisponivel: "18h às 22h",
-    submittedAt: "Hoje, 15:30",
-    status: "pendente",
-    staffNote: "",
-  },
-];
+const DEMO: StoredCandidate[] = [];
 
 // ─── Color Maps ───────────────────────────────────────────────────────────────
 
@@ -236,11 +180,11 @@ function formatFicha(c: StoredCandidate): string {
 function loadCandidates(): StoredCandidate[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEMO;
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as StoredCandidate[];
-    return parsed.length ? parsed : DEMO;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return DEMO;
+    return [];
   }
 }
 
@@ -707,7 +651,7 @@ function CandidateCard({
 }: {
   candidate: StoredCandidate;
   onStatusChange: (id: string, status: StoredCandidate["status"]) => void;
-  onDelete: (id: string) => void;
+  onDelete: (candidate: StoredCandidate) => void;
   onNoteChange: (id: string, note: string) => void;
   onWaClick: (c: StoredCandidate) => void;
   onPromote?: (c: StoredCandidate) => void;
@@ -961,10 +905,10 @@ function CandidateCard({
             </button>
             <span className="h-3 w-px bg-white/10" />
             <button
-              title="Excluir"
+              title="Excluir Candidatura"
               onClick={() => {
-                playDenySound();
-                onDelete(candidate.id);
+                playClickSound();
+                onDelete(candidate);
               }}
               className="rounded-md p-1.5 text-subtle transition-colors hover:text-red-400"
             >
@@ -1180,6 +1124,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [muted, setMuted] = useState(isSoundMuted);
   const [waCandidate, setWaCandidate] = useState<StoredCandidate | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [candidateToDelete, setCandidateToDelete] = useState<StoredCandidate | null>(null);
   const [memberModal, setMemberModal] = useState<{
     isOpen: boolean;
     initialData?: GuildMember | null;
@@ -1196,7 +1141,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     let isMounted = true;
     fetchCandidatesSupabase()
       .then((data) => {
-        if (isMounted && data.length > 0) {
+        if (isMounted) {
           setCandidates(data);
         }
       })
@@ -1216,8 +1161,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           fetchCandidatesSupabase().then((data) => {
             if (isMounted) {
               setCandidates(data);
-              playApproveSound();
-              toast.info("Nova inscrição recebida no banco!");
             }
           });
         },
@@ -1842,7 +1785,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                     key={c.id}
                     candidate={c}
                     onStatusChange={updateStatus}
-                    onDelete={deleteCandidate}
+                    onDelete={(cand) => setCandidateToDelete(cand)}
                     onNoteChange={updateNote}
                     onWaClick={(cand) => {
                       playClickSound();
@@ -1897,6 +1840,22 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             key="add-modal"
             onClose={() => setShowAddModal(false)}
             onAdd={addCandidate}
+          />
+        )}
+        {candidateToDelete && (
+          <ConfirmDeleteModal
+            key="confirm-delete-candidate"
+            isOpen={Boolean(candidateToDelete)}
+            title="Excluir Candidatura"
+            itemName={candidateToDelete.nick}
+            itemDescription={`A ficha de ${candidateToDelete.nome || candidateToDelete.nick} será apagada permanentemente do sistema.`}
+            confirmLabel="Sim, Excluir Ficha"
+            onClose={() => setCandidateToDelete(null)}
+            onConfirm={() => {
+              playDenySound();
+              deleteCandidate(candidateToDelete.id);
+              setCandidateToDelete(null);
+            }}
           />
         )}
         {memberModal.isOpen && (
