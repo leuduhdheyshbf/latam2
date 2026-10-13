@@ -4,22 +4,29 @@ import {
   ClipboardPaste,
   Clock,
   Copy,
+  Crown,
   Download,
   ExternalLink,
   Eye,
   EyeOff,
+  FileText,
   KeyRound,
   Lock,
   LogOut,
   MessageCircle,
+  Pencil,
+  Plus,
   Search,
+  Shield,
   ShieldCheck,
   Sparkles,
   Swords,
   Trash2,
   Trophy,
+  UserCheck,
   UserPlus,
   Users,
+  UserX,
   Volume2,
   VolumeX,
   X,
@@ -57,6 +64,16 @@ import {
   isSupabaseConfigured,
   updateCandidateSupabase,
 } from "@/lib/supabase";
+import { MembrosView, MemberModal } from "@/components/admin-members";
+import { LinesView, AddLineModal } from "@/components/admin-lines";
+import {
+  type GuildMember,
+  type GuildLine,
+  loadMembers,
+  saveMembers,
+  loadLines,
+  saveLines,
+} from "@/lib/guild";
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
 
@@ -70,6 +87,7 @@ type StoredCandidate = RecruitmentValues & {
 };
 
 type FilterStatus = "todos" | "pendente" | "aprovado" | "recusado";
+type ActiveSection = "candidaturas" | "lines" | "membros";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -685,12 +703,14 @@ function CandidateCard({
   onDelete,
   onNoteChange,
   onWaClick,
+  onPromote,
 }: {
   candidate: StoredCandidate;
   onStatusChange: (id: string, status: StoredCandidate["status"]) => void;
   onDelete: (id: string) => void;
   onNoteChange: (id: string, note: string) => void;
   onWaClick: (c: StoredCandidate) => void;
+  onPromote?: (c: StoredCandidate) => void;
 }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteText, setNoteText] = useState(candidate.staffNote ?? "");
@@ -865,6 +885,19 @@ function CandidateCard({
 
         {/* ── Right ── */}
         <div className="flex shrink-0 flex-row flex-wrap gap-2 sm:flex-col sm:items-stretch">
+          {candidate.status === "aprovado" && onPromote && (
+            <Button
+              className="gap-2 border-accent/40 bg-accent/15 py-2 text-sm text-accent hover:bg-accent/25"
+              variant="ghost"
+              onClick={() => {
+                playClickSound();
+                onPromote(candidate);
+              }}
+            >
+              <Trophy size={14} />
+              Promover a Membro
+            </Button>
+          )}
           <Button
             className="gap-2 border-emerald-500/30 bg-emerald-500/10 py-2 text-sm text-emerald-400 hover:bg-emerald-500/20"
             variant="ghost"
@@ -1136,7 +1169,10 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
+  const [activeSection, setActiveSection] = useState<ActiveSection>("candidaturas");
   const [candidates, setCandidates] = useState<StoredCandidate[]>(loadCandidates);
+  const [members, setMembers] = useState<GuildMember[]>(() => loadMembers());
+  const [lines, setLines] = useState<GuildLine[]>(() => loadLines());
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("todos");
   const [search, setSearch] = useState("");
   const [funcaoFilter, setFuncaoFilter] = useState("");
@@ -1144,6 +1180,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [muted, setMuted] = useState(isSoundMuted);
   const [waCandidate, setWaCandidate] = useState<StoredCandidate | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [memberModal, setMemberModal] = useState<{
+    isOpen: boolean;
+    initialData?: GuildMember | null;
+  }>({ isOpen: false });
+  const [lineModal, setLineModal] = useState<{
+    isOpen: boolean;
+    initialData?: GuildLine | null;
+  }>({ isOpen: false });
 
   // Carregar do Supabase e assinar atualizações Realtime se configurado
   useEffect(() => {
@@ -1188,6 +1232,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   // Persist on change (backup local)
   useEffect(() => saveCandidates(candidates), [candidates]);
+  useEffect(() => saveMembers(members), [members]);
+  useEffect(() => saveLines(lines), [lines]);
 
   function updateStatus(id: string, status: StoredCandidate["status"]) {
     setCandidates((prev) =>
@@ -1274,6 +1320,140 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     toast.success("Exportação concluída.");
   }
 
+  // Member Handlers
+  function handleAddMember() {
+    playClickSound();
+    setMemberModal({ isOpen: true, initialData: null });
+  }
+
+  function handleEditMember(m: GuildMember) {
+    playClickSound();
+    setMemberModal({ isOpen: true, initialData: m });
+  }
+
+  function handleDeleteMember(id: string) {
+    playDenySound();
+    setMembers((prev) => prev.filter((m) => m.id !== id));
+    // Clear from line slots
+    setLines((prev) =>
+      prev.map((line) => ({
+        ...line,
+        slots: line.slots.map((s) =>
+          s.jogadorId === id
+            ? { ...s, jogadorNick: "", jogadorId: undefined, jogadorIdConta: undefined }
+            : s,
+        ),
+      })),
+    );
+    toast.success("Membro removido do roster.");
+  }
+
+  function handleSaveMember(saved: GuildMember) {
+    setMembers((prev) => {
+      const exists = prev.some((m) => m.id === saved.id);
+      if (exists) {
+        return prev.map((m) => (m.id === saved.id ? saved : m));
+      }
+      return [saved, ...prev];
+    });
+    setMemberModal({ isOpen: false });
+  }
+
+  function handlePromoteCandidate(c: StoredCandidate) {
+    playClickSound();
+    setMemberModal({
+      isOpen: true,
+      initialData: {
+        id: `mem-${Date.now()}`,
+        nick: c.nick,
+        nome: c.nome || "",
+        idConta: c.idConta,
+        whatsapp: c.whatsapp,
+        cargo: "titular",
+        funcao: c.funcao || "rush",
+        patente: c.patenteAtual || "diamente_mestre",
+        status: "ativo",
+        entrouEm: "Recém-Aprovado",
+        nota: c.staffNote || "Promovido via recrutamento",
+      },
+    });
+  }
+
+  // Line Handlers
+  function handleAddLine() {
+    playClickSound();
+    setLineModal({ isOpen: true, initialData: null });
+  }
+
+  function handleEditLine(l: GuildLine) {
+    playClickSound();
+    setLineModal({ isOpen: true, initialData: l });
+  }
+
+  function handleDeleteLine(lineId: string) {
+    playDenySound();
+    setLines((prev) => prev.filter((l) => l.id !== lineId));
+    toast.success("Line excluída com sucesso.");
+  }
+
+  function handleSaveLine(saved: GuildLine) {
+    setLines((prev) => {
+      const exists = prev.some((l) => l.id === saved.id);
+      if (exists) {
+        return prev.map((l) => (l.id === saved.id ? saved : l));
+      }
+      return [...prev, saved];
+    });
+    setLineModal({ isOpen: false });
+  }
+
+  function handleAssignSlot(
+    lineId: string,
+    slotNumber: number,
+    playerNick: string,
+    idConta?: string,
+    memberId?: string,
+  ) {
+    setLines((prev) =>
+      prev.map((line) => {
+        if (line.id !== lineId) return line;
+        return {
+          ...line,
+          slots: line.slots.map((s) => {
+            if (s.slotNumber !== slotNumber) return s;
+            return {
+              ...s,
+              jogadorNick: playerNick,
+              jogadorIdConta: idConta || s.jogadorIdConta,
+              jogadorId: memberId || s.jogadorId,
+            };
+          }),
+        };
+      }),
+    );
+  }
+
+  function handleClearSlot(lineId: string, slotNumber: number) {
+    setLines((prev) =>
+      prev.map((line) => {
+        if (line.id !== lineId) return line;
+        return {
+          ...line,
+          slots: line.slots.map((s) => {
+            if (s.slotNumber !== slotNumber) return s;
+            return {
+              ...s,
+              jogadorNick: "",
+              jogadorId: undefined,
+              jogadorIdConta: undefined,
+            };
+          }),
+        };
+      }),
+    );
+    toast.info("Vaga desescalada.");
+  }
+
   // Stats
   const total = candidates.length;
   const emAnalise = candidates.filter((c) => c.status === "pendente").length;
@@ -1317,34 +1497,81 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     <div className="min-h-screen page-bg">
       {/* ── Topbar ── */}
       <header className="sticky top-0 z-30 border-b border-white/8 bg-[#07090e]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-          {/* Logo */}
-          <div className="flex items-center gap-2 mr-4">
-            <img src="/latam-mark.webp" alt={`${GUILD_NAME}${GUILD_MARK}`} className="h-7 w-auto" />
-            <span className="font-display text-xl text-silver hidden sm:block">
-              {GUILD_NAME} <span className="text-accent">{GUILD_MARK}</span>
-            </span>
-          </div>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          {/* Logo & Navigation Tabs */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link to="/" className="flex items-center gap-2 group shrink-0">
+              <img
+                src="/latam-mark.webp"
+                alt={`${GUILD_NAME}${GUILD_MARK}`}
+                className="h-7 w-auto transition-transform group-hover:scale-105"
+              />
+              <span className="font-display text-xl text-silver hidden sm:block">
+                {GUILD_NAME} <span className="text-accent">{GUILD_MARK}</span>
+              </span>
+            </Link>
 
-          <div className="flex-1 flex items-center gap-2.5">
-            <h2 className="font-display text-lg text-silver leading-none">
-              Candidaturas
-            </h2>
-            {isSupabaseConfigured ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-                <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-                Supabase Online
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400" title="Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env">
-                <span className="size-1.5 rounded-full bg-amber-400" />
-                Modo Local (Sem Nuvem)
-              </span>
-            )}
+            {/* Nav Section Tabs */}
+            <div className="flex items-center gap-1 rounded-xl border border-white/8 bg-[#121821] p-1">
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setActiveSection("candidaturas");
+                }}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all ${
+                  activeSection === "candidaturas"
+                    ? "bg-accent/15 text-accent shadow-sm border border-accent/30"
+                    : "text-subtle hover:text-foreground"
+                }`}
+              >
+                <FileText size={13} />
+                <span className="hidden md:inline">Candidaturas</span>
+                <span className="md:hidden">Inscritos</span>
+                <span className="rounded-full bg-white/10 px-1.5 py-0.2 text-[10px]">
+                  {candidates.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setActiveSection("lines");
+                }}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all ${
+                  activeSection === "lines"
+                    ? "bg-accent/15 text-accent shadow-sm border border-accent/30"
+                    : "text-subtle hover:text-foreground"
+                }`}
+              >
+                <Swords size={13} />
+                <span>Lines</span>
+                <span className="rounded-full bg-white/10 px-1.5 py-0.2 text-[10px]">
+                  {lines.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setActiveSection("membros");
+                }}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all ${
+                  activeSection === "membros"
+                    ? "bg-accent/15 text-accent shadow-sm border border-accent/30"
+                    : "text-subtle hover:text-foreground"
+                }`}
+              >
+                <Users size={13} />
+                <span>Membros</span>
+                <span className="rounded-full bg-white/10 px-1.5 py-0.2 text-[10px]">
+                  {members.length}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Sound toggle */}
             <button
               onClick={() => {
@@ -1357,37 +1584,65 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
 
-            {/* Export */}
-            <button
-              onClick={exportCsv}
-              className="rounded-lg p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
-              title="Exportar CSV"
-            >
-              <Download size={16} />
-            </button>
+            {/* Contextual Action Buttons */}
+            {activeSection === "candidaturas" && (
+              <>
+                <button
+                  onClick={exportCsv}
+                  className="rounded-lg p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+                  title="Exportar CSV"
+                >
+                  <Download size={16} />
+                </button>
+                <Button
+                  className="gap-1.5 py-2 text-sm bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30"
+                  onClick={() => {
+                    playClickSound();
+                    setShowAddModal(true);
+                  }}
+                >
+                  <ClipboardPaste size={14} />
+                  <span className="hidden sm:inline">Colar Ficha</span>
+                  <span className="sm:hidden">Colar</span>
+                </Button>
+              </>
+            )}
 
-            {/* Colar Ficha */}
-            <Button
-              className="gap-1.5 py-2 text-sm bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30"
-              onClick={() => {
-                playClickSound();
-                setShowAddModal(true);
-              }}
-            >
-              <ClipboardPaste size={14} />
-              <span className="hidden sm:inline">Colar Ficha</span>
-              <span className="sm:hidden">Colar</span>
-            </Button>
+            {activeSection === "lines" && (
+              <Button
+                className="gap-1.5 py-2 text-sm bg-accent text-accent-foreground font-semibold hover:bg-accent/90"
+                onClick={handleAddLine}
+              >
+                <Plus size={14} />
+                <span className="hidden sm:inline">Nova Line</span>
+                <span className="sm:hidden">Line</span>
+              </Button>
+            )}
+
+            {activeSection === "membros" && (
+              <Button
+                className="gap-1.5 py-2 text-sm bg-accent text-accent-foreground font-semibold hover:bg-accent/90"
+                onClick={handleAddMember}
+              >
+                <UserPlus size={14} />
+                <span className="hidden sm:inline">Novo Membro</span>
+                <span className="sm:hidden">Membro</span>
+              </Button>
+            )}
 
             {/* Logout */}
             <button
               onClick={() => {
                 playClickSound();
-                try { sessionStorage.removeItem(AUTH_KEY); } catch { /* ignore */ }
+                try {
+                  sessionStorage.removeItem(AUTH_KEY);
+                } catch {
+                  /* ignore */
+                }
                 onLogout();
                 toast.info("Sessão encerrada.");
               }}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
             >
               <LogOut size={14} />
               <span className="hidden sm:inline">Sair</span>
@@ -1397,174 +1652,234 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
-        {/* ── Stat Cards ── */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {/* Total */}
-          <div className="rounded-xl border border-white/8 bg-[#0e131b] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs uppercase tracking-widest text-subtle">
-                Total Inscritos
-              </p>
-              <Users size={15} className="text-subtle" />
-            </div>
-            <p className="font-display text-4xl text-foreground">{total}</p>
-          </div>
+        {/* ── Section: Candidaturas ── */}
+        {activeSection === "candidaturas" && (
+          <>
+            {/* Header with Supabase indicator */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-widest text-accent font-semibold">
+                  Recrutamento Aberto
+                </p>
+                <h1 className="font-display text-3xl text-silver">
+                  Candidaturas Free Fire
+                </h1>
+              </div>
 
-          {/* Em Análise */}
-          <div className="rounded-xl border border-amber-500/15 bg-[#0e131b] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs uppercase tracking-widest text-subtle">
-                Em Análise
-              </p>
-              <Clock size={15} className="text-amber-400" />
+              <div>
+                {isSupabaseConfigured ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400">
+                    <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+                    Supabase Nuvem Ativo
+                  </span>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400"
+                    title="Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env"
+                  >
+                    <span className="size-1.5 rounded-full bg-amber-400" />
+                    Modo Local (Sem Nuvem)
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="font-display text-4xl text-amber-400">{emAnalise}</p>
-          </div>
 
-          {/* Aprovados */}
-          <div className="rounded-xl border border-emerald-500/15 bg-[#0e131b] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs uppercase tracking-widest text-subtle">
-                Aprovados p/ Teste
-              </p>
-              <Trophy size={15} className="text-emerald-400" />
-            </div>
-            <p className="font-display text-4xl text-emerald-400">{aprovados}</p>
-          </div>
+            {/* ── Stat Cards ── */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {/* Total */}
+              <div className="rounded-xl border border-white/8 bg-[#0e131b] p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-widest text-subtle">
+                    Total Inscritos
+                  </p>
+                  <Users size={15} className="text-subtle" />
+                </div>
+                <p className="font-display text-4xl text-foreground">{total}</p>
+              </div>
 
-          {/* Vagas */}
-          <div className="rounded-xl border border-accent/15 bg-[#0e131b] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs uppercase tracking-widest text-subtle">
-                Vagas da Line-up
-              </p>
-              <Swords size={15} className="text-accent" />
-            </div>
-            <div className="flex items-baseline gap-1 mb-2">
-              <span className="font-display text-4xl text-accent">{aprovados}</span>
-              <span className="text-sm font-semibold text-subtle">/ {LINEUP_SLOTS}</span>
-            </div>
-            <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mb-2">
-              <div
-                className="bg-accent h-full rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(100, (aprovados / LINEUP_SLOTS) * 100)}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-subtle">
-              {vagasLivres} vaga{vagasLivres !== 1 ? "s" : ""} livre{vagasLivres !== 1 ? "s" : ""}
-            </p>
-          </div>
-        </div>
+              {/* Em Análise */}
+              <div className="rounded-xl border border-amber-500/15 bg-[#0e131b] p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-widest text-subtle">
+                    Em Análise
+                  </p>
+                  <Clock size={15} className="text-amber-400" />
+                </div>
+                <p className="font-display text-4xl text-amber-400">{emAnalise}</p>
+              </div>
 
-        {/* ── Search + Filters ── */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Search */}
-          <div className="relative flex-1 min-w-48">
-            <Search
-              size={14}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle"
-            />
-            <input
-              type="text"
-              placeholder="Buscar por nick, nome ou cidade..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-[#121821] py-1.5 pl-8 pr-8 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-subtle hover:text-foreground"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
+              {/* Aprovados */}
+              <div className="rounded-xl border border-emerald-500/15 bg-[#0e131b] p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-widest text-subtle">
+                    Aprovados p/ Teste
+                  </p>
+                  <Trophy size={15} className="text-emerald-400" />
+                </div>
+                <p className="font-display text-4xl text-emerald-400">{aprovados}</p>
+              </div>
 
-          {/* Status tabs */}
-          <div className="flex items-center gap-0.5 rounded-lg border border-white/8 bg-[#121821] p-0.5">
-            {tabs.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => {
+              {/* Vagas */}
+              <div className="rounded-xl border border-accent/15 bg-[#0e131b] p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs uppercase tracking-widest text-subtle">
+                    Vagas da Line-up
+                  </p>
+                  <Swords size={15} className="text-accent" />
+                </div>
+                <div className="flex items-baseline gap-1 mb-2">
+                  <span className="font-display text-4xl text-accent">{aprovados}</span>
+                  <span className="text-sm font-semibold text-subtle">/ {LINEUP_SLOTS}</span>
+                </div>
+                <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mb-2">
+                  <div
+                    className="bg-accent h-full rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (aprovados / LINEUP_SLOTS) * 100)}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-subtle">
+                  {vagasLivres} vaga{vagasLivres !== 1 ? "s" : ""} livre{vagasLivres !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+
+            {/* ── Search + Filters ── */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Search */}
+              <div className="relative flex-1 min-w-48">
+                <Search
+                  size={14}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle"
+                />
+                <input
+                  type="text"
+                  placeholder="Buscar por nick, nome ou cidade..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-[#121821] py-1.5 pl-8 pr-8 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none"
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-subtle hover:text-foreground"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              {/* Status tabs */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-white/8 bg-[#121821] p-0.5">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => {
+                      playClickSound();
+                      setFilterStatus(tab.value);
+                    }}
+                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                      filterStatus === tab.value
+                        ? "bg-accent text-accent-foreground"
+                        : "text-subtle hover:text-foreground"
+                    }`}
+                  >
+                    {tab.label}
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        filterStatus === tab.value
+                          ? "bg-accent-foreground/20 text-accent-foreground"
+                          : "bg-white/8 text-subtle"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Function filter */}
+              <select
+                value={funcaoFilter}
+                onChange={(e) => {
                   playClickSound();
-                  setFilterStatus(tab.value);
+                  setFuncaoFilter(e.target.value);
                 }}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                  filterStatus === tab.value
-                    ? "bg-accent text-accent-foreground"
-                    : "text-subtle hover:text-foreground"
-                }`}
+                className={selectClass}
               >
-                {tab.label}
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                    filterStatus === tab.value
-                      ? "bg-accent-foreground/20 text-accent-foreground"
-                      : "bg-white/8 text-subtle"
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
+                <option value="">Todas as funções</option>
+                {FUNCOES.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
 
-          {/* Function filter */}
-          <select
-            value={funcaoFilter}
-            onChange={(e) => {
-              playClickSound();
-              setFuncaoFilter(e.target.value);
-            }}
-            className={selectClass}
-          >
-            <option value="">Todas as funções</option>
-            {FUNCOES.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={(e) => {
-              playClickSound();
-              setSortBy(e.target.value as typeof sortBy);
-            }}
-            className={selectClass}
-          >
-            <option value="newest">Mais recentes</option>
-            <option value="oldest">Mais antigos</option>
-            <option value="nick">Nick (A-Z)</option>
-          </select>
-        </div>
-
-        {/* ── Candidate List ── */}
-        <div className="space-y-3">
-          {filtered.length === 0 ? (
-            <div className="py-20 text-center">
-              <Users size={32} className="mx-auto mb-4 text-subtle/40" />
-              <p className="text-subtle">Nenhum candidato encontrado.</p>
-            </div>
-          ) : (
-            filtered.map((c) => (
-              <CandidateCard
-                key={c.id}
-                candidate={c}
-                onStatusChange={updateStatus}
-                onDelete={deleteCandidate}
-                onNoteChange={updateNote}
-                onWaClick={(cand) => {
+              {/* Sort */}
+              <select
+                value={sortBy}
+                onChange={(e) => {
                   playClickSound();
-                  setWaCandidate(cand);
+                  setSortBy(e.target.value as typeof sortBy);
                 }}
-              />
-            ))
-          )}
-        </div>
+                className={selectClass}
+              >
+                <option value="newest">Mais recentes</option>
+                <option value="oldest">Mais antigos</option>
+                <option value="nick">Nick (A-Z)</option>
+              </select>
+            </div>
+
+            {/* ── Candidate List ── */}
+            <div className="space-y-3">
+              {filtered.length === 0 ? (
+                <div className="py-20 text-center">
+                  <Users size={32} className="mx-auto mb-4 text-subtle/40" />
+                  <p className="text-subtle">Nenhum candidato encontrado.</p>
+                </div>
+              ) : (
+                filtered.map((c) => (
+                  <CandidateCard
+                    key={c.id}
+                    candidate={c}
+                    onStatusChange={updateStatus}
+                    onDelete={deleteCandidate}
+                    onNoteChange={updateNote}
+                    onWaClick={(cand) => {
+                      playClickSound();
+                      setWaCandidate(cand);
+                    }}
+                    onPromote={handlePromoteCandidate}
+                  />
+                ))
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Section: Lines ── */}
+        {activeSection === "lines" && (
+          <LinesView
+            lines={lines}
+            members={members}
+            candidates={candidates}
+            onAddLine={handleAddLine}
+            onEditLine={handleEditLine}
+            onDeleteLine={handleDeleteLine}
+            onAssignSlot={handleAssignSlot}
+            onClearSlot={handleClearSlot}
+          />
+        )}
+
+        {/* ── Section: Membros ── */}
+        {activeSection === "membros" && (
+          <MembrosView
+            members={members}
+            lines={lines}
+            onAddMember={handleAddMember}
+            onEditMember={handleEditMember}
+            onDeleteMember={handleDeleteMember}
+          />
+        )}
       </main>
 
       {/* ── Modals ── */}
@@ -1582,6 +1897,23 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             key="add-modal"
             onClose={() => setShowAddModal(false)}
             onAdd={addCandidate}
+          />
+        )}
+        {memberModal.isOpen && (
+          <MemberModal
+            key="member-modal"
+            initialData={memberModal.initialData}
+            lines={lines}
+            onClose={() => setMemberModal({ isOpen: false })}
+            onSave={handleSaveMember}
+          />
+        )}
+        {lineModal.isOpen && (
+          <AddLineModal
+            key="line-modal"
+            initialLine={lineModal.initialData}
+            onClose={() => setLineModal({ isOpen: false })}
+            onSave={handleSaveLine}
           />
         )}
       </AnimatePresence>
