@@ -126,3 +126,88 @@ export function saveLines(list: GuildLine[]) {
     /* ignore */
   }
 }
+
+// ─── Warnings / Advertências ──────────────────────────────────────────────────
+
+export type WarningGrau = "leve" | "media" | "grave";
+export type WarningStatus = "ativa" | "revogada" | "cumprida";
+
+export type GuildWarning = {
+  id: string;
+  memberId: string;
+  memberNick: string;
+  memberIdConta?: string;
+  motivo: string;
+  descricao?: string;
+  grau: WarningGrau;
+  pontos: number; // 1 (leve), 2 (média), 3 (grave)
+  data: string;
+  aplicadaPor: string;
+  status: WarningStatus;
+  dataRevogacao?: string;
+  motivoRevogacao?: string;
+};
+
+export const MAX_WARNING_POINTS = 3;
+export const STORAGE_WARNINGS_KEY = "latam-admin-warnings";
+
+export const WARNING_MOTIVOS_PRESET = [
+  "Falta injustificada em Treino Oficial",
+  "Atraso recorrente nos horários marcados",
+  "Toxicidade ou desrespeito em call/chat",
+  "Descumprimento direto de ordem do Capitão",
+  "Não atingiu a meta semanal de pontuação/atividade",
+  "Ausência prolongada sem aviso prévio à Staff",
+  "Uso indevido da Tag/Nome da Guilda em público",
+  "Conduta antiesportiva em sala personalizada",
+  "Outro motivo personalizado",
+] as const;
+
+export const GRAU_CONFIG: Record<
+  WarningGrau,
+  { label: string; pontos: number; badgeClass: string; borderClass: string; textClass: string }
+> = {
+  leve: {
+    label: "Leve (1 Ponto)",
+    pontos: 1,
+    badgeClass: "text-amber-400 border-amber-500/30 bg-amber-500/10",
+    borderClass: "border-amber-500/30 hover:border-amber-500/50",
+    textClass: "text-amber-400",
+  },
+  media: {
+    label: "Média (2 Pontos)",
+    pontos: 2,
+    badgeClass: "text-orange-400 border-orange-500/30 bg-orange-500/10",
+    borderClass: "border-orange-500/40 hover:border-orange-500/60",
+    textClass: "text-orange-400",
+  },
+  grave: {
+    label: "Grave (3 Pontos / Kick)",
+    pontos: 3,
+    badgeClass: "text-red-400 border-red-500/30 bg-red-500/10 shadow-red-500/20 shadow-sm",
+    borderClass: "border-red-500/50 hover:border-red-500/80 shadow-[0_0_15px_rgba(239,68,68,0.15)]",
+    textClass: "text-red-400",
+  },
+};
+
+export function loadWarnings(): GuildWarning[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_WARNINGS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as GuildWarning[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveWarnings(list: GuildWarning[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_WARNINGS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+}
+

@@ -70,6 +70,7 @@ interface LinesViewProps {
   members: GuildMember[];
   candidates: LineCandidate[];
   onAddLine: () => void;
+  onPasteLine?: () => void;
   onEditLine: (line: GuildLine) => void;
   onDeleteLine: (lineId: string) => void;
   onAssignSlot: (
@@ -87,6 +88,7 @@ export function LinesView({
   members,
   candidates,
   onAddLine,
+  onPasteLine,
   onEditLine,
   onDeleteLine,
   onAssignSlot,
@@ -98,6 +100,7 @@ export function LinesView({
   } | null>(null);
   const [lineToDelete, setLineToDelete] = useState<GuildLine | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   // KPIs
   const totalLines = lines.length;
@@ -116,6 +119,17 @@ export function LinesView({
   const linesWithVacancies = lines.filter((l) =>
     l.slots.some((s) => !s.jogadorNick || !s.jogadorNick.trim())
   ).length;
+
+  const filteredLines = lines.filter((l) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      l.nome.toLowerCase().includes(q) ||
+      l.tag.toLowerCase().includes(q) ||
+      (l.capitaoNick && l.capitaoNick.toLowerCase().includes(q)) ||
+      l.slots.some((s) => s.jogadorNick && s.jogadorNick.toLowerCase().includes(q))
+    );
+  });
 
   function copyId(id: string) {
     void navigator.clipboard.writeText(id);
@@ -189,28 +203,96 @@ export function LinesView({
         </div>
       </div>
 
-      {/* ── Lines List ── */}
-      <div className="space-y-6">
-        {lines.length === 0 ? (
-          <div className="rounded-2xl border border-white/8 bg-[#0e131b] py-16 text-center">
-            <Swords size={36} className="mx-auto mb-3 text-subtle/40" />
-            <p className="text-silver font-semibold mb-1">Nenhuma line cadastrada</p>
-            <p className="text-xs text-subtle mb-4">
-              Crie a primeira line para escalar os jogadores da LATAM 友.
-            </p>
-            <Button
+      {/* ── Barra de Busca e Ações (tipo Membros) ── */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle"
+          />
+          <input
+            className="w-full rounded-xl border border-white/10 bg-[#121821] py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none"
+            placeholder="Buscar por nome da line, tag ou jogador..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-subtle hover:text-foreground"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {onPasteLine && (
+            <button
               onClick={() => {
                 playClickSound();
-                onAddLine();
+                onPasteLine();
               }}
-              className="gap-2 bg-accent text-accent-foreground font-semibold"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
             >
-              <Plus size={16} />
-              Criar Nova Line
-            </Button>
+              <ClipboardPaste size={14} />
+              <span className="hidden sm:inline">Colar Ficha</span>
+              <span className="sm:hidden">Colar</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              playClickSound();
+              onAddLine();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground px-3.5 py-2 text-xs font-semibold transition-all shadow-[0_0_15px_rgba(0,180,255,0.25)] cursor-pointer"
+          >
+            <Plus size={14} />
+            <span className="hidden sm:inline">Nova Line</span>
+            <span className="sm:hidden">Line</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Lines List ── */}
+      <div className="space-y-6">
+        {filteredLines.length === 0 ? (
+          <div className="rounded-2xl border border-white/8 bg-[#0e131b] py-16 text-center">
+            <Swords size={36} className="mx-auto mb-3 text-subtle/40" />
+            <p className="text-silver font-semibold mb-1">
+              {search ? "Nenhuma line encontrada para essa busca" : "Nenhuma line cadastrada"}
+            </p>
+            <p className="text-xs text-subtle mb-4">
+              {search ? "Tente buscar por outro termo ou limpe a busca." : "Crie ou cole a primeira line para escalar os jogadores da LATAM 友."}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {onPasteLine && (
+                <button
+                  onClick={() => {
+                    playClickSound();
+                    onPasteLine();
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all cursor-pointer"
+                >
+                  <ClipboardPaste size={14} />
+                  Colar Ficha de Line
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  playClickSound();
+                  onAddLine();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer shadow-[0_0_15px_rgba(0,180,255,0.25)]"
+              >
+                <Plus size={14} />
+                Nova Line Manual
+              </button>
+            </div>
           </div>
         ) : (
-          lines.map((line) => {
+          filteredLines.map((line) => {
+
             const statusCfg =
               LINE_STATUS_CONFIG[line.status] ?? LINE_STATUS_CONFIG.completa;
             const filledCount = line.slots.filter(
@@ -850,6 +932,93 @@ export function AssignSlotModal({
   );
 }
 
+// ─── Parser de Ficha de Line ─────────────────────────────────────────────────
+
+export function parseLineFicha(raw: string) {
+  const clean = raw.replace(/[*_#~]/g, "");
+  const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  let nome = "";
+  let tag = "";
+  let status: GuildLine["status"] = "buscando_rush";
+  let horarioTreino = "19h30 às 22h00";
+  let capitaoNick = "";
+  const slots: GuildLineSlot[] = [
+    { slotNumber: 1, funcaoLabel: "Capitão / IGL" },
+    { slotNumber: 2, funcaoLabel: "1º Rush" },
+    { slotNumber: 3, funcaoLabel: "2º Rush" },
+    { slotNumber: 4, funcaoLabel: "Suporte" },
+    { slotNumber: 5, funcaoLabel: "Reserva" },
+  ];
+
+  let currentSlot = 0;
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+
+    if (
+      lower.startsWith("line:") ||
+      lower.startsWith("nome:") ||
+      lower.startsWith("esquadrão:") ||
+      lower.startsWith("esquadrao:")
+    ) {
+      nome = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (lower.startsWith("tag:")) {
+      tag = line.split(/:(.+)/)[1]?.trim().toUpperCase() || "";
+    } else if (
+      lower.startsWith("horário:") ||
+      lower.startsWith("horario:") ||
+      lower.startsWith("treino:")
+    ) {
+      horarioTreino = line.split(/:(.+)/)[1]?.trim() || horarioTreino;
+    } else if (
+      lower.startsWith("capitão:") ||
+      lower.startsWith("capitao:") ||
+      lower.startsWith("igl:")
+    ) {
+      capitaoNick = line.split(/:(.+)/)[1]?.trim() || "";
+      if (slots[0]) {
+        slots[0].jogadorNick = capitaoNick;
+      }
+    } else if (lower.startsWith("status:")) {
+      const sVal = lower.split(/:(.+)/)[1]?.trim() || "";
+      if (sVal.includes("completa")) status = "completa";
+      else if (sVal.includes("rush")) status = "buscando_rush";
+      else if (sVal.includes("suporte")) status = "buscando_suporte";
+      else if (sVal.includes("treino")) status = "em_treino";
+    } else {
+      // Reconhece linhas numeradas tipo "1 - Nick (ID: 12345)" ou "2. Nick"
+      const slotMatch = line.match(/^(\d|vaga\s*\d|slot\s*\d|[1-5])[º°\.\-\:\)]\s*(.+)/i);
+      if (slotMatch && currentSlot < slots.length) {
+        const playerInfo = slotMatch[2].trim();
+        const idMatch = playerInfo.match(/\b(?:id:?\s*)?(\d{7,12})\b/i);
+        const nickClean = playerInfo
+          .replace(/\(?id:?\s*\d+\)?/i, "")
+          .replace(/[\(\)\[\]\-]/g, "")
+          .trim();
+        if (nickClean) {
+          slots[currentSlot].jogadorNick = nickClean;
+          if (idMatch) slots[currentSlot].jogadorIdConta = idMatch[1];
+          if (currentSlot === 0 && !capitaoNick) capitaoNick = nickClean;
+          currentSlot++;
+        }
+      }
+    }
+  }
+
+  if (!nome) {
+    const firstNonHeader = lines.find(
+      (l) => !l.toLowerCase().includes("latam") && !l.includes(":")
+    );
+    nome = firstNonHeader ? firstNonHeader.slice(0, 24) : "Line Nova";
+  }
+  if (!tag) {
+    tag = nome.replace(/line\s*/i, "").trim().slice(0, 6).toUpperCase() || "LATAM";
+  }
+
+  return { nome, tag, status, horarioTreino, capitaoNick, slots };
+}
+
 // ─── Modal: Criar / Editar Line ──────────────────────────────────────────────
 
 interface AddLineModalProps {
@@ -871,6 +1040,44 @@ export function AddLineModal({
     capitaoNick: initialLine?.capitaoNick ?? "",
   });
 
+  async function handlePasteIntoForm() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      const p = parseLineFicha(text);
+      setForm((prev) => ({
+        ...prev,
+        nome: p.nome || prev.nome,
+        tag: p.tag || prev.tag,
+        status: p.status || prev.status,
+        horarioTreino: p.horarioTreino || prev.horarioTreino,
+        capitaoNick: p.capitaoNick || prev.capitaoNick,
+      }));
+      playApproveSound();
+      toast.success("Dados da line colados e preenchidos!");
+    } catch {
+      toast.error("Permissão de área de transferência necessária.");
+    }
+  }
+
+  async function pasteSpecificField(field: keyof typeof form) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      setForm((prev) => ({ ...prev, [field]: text.trim() }));
+      playApproveSound();
+      toast.success("Texto colado!");
+    } catch {
+      toast.error("Permissão de área de transferência necessária.");
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.nome.trim()) {
@@ -883,7 +1090,7 @@ export function AddLineModal({
     }
 
     const defaultSlots: GuildLineSlot[] = [
-      { slotNumber: 1, funcaoLabel: "Capitão / IGL" },
+      { slotNumber: 1, funcaoLabel: "Capitão / IGL", jogadorNick: form.capitaoNick || undefined },
       { slotNumber: 2, funcaoLabel: "1º Rush" },
       { slotNumber: 3, funcaoLabel: "2º Rush" },
       { slotNumber: 4, funcaoLabel: "Suporte" },
@@ -909,8 +1116,8 @@ export function AddLineModal({
   }
 
   const fieldClass =
-    "w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none";
-  const labelClass = "block text-xs text-subtle mb-1";
+    "w-full rounded-xl border border-white/10 bg-[#121821] px-3 py-2.5 text-sm text-silver placeholder:text-subtle focus:border-accent/50 focus:outline-none transition-colors hover:border-white/20";
+  const labelClass = "text-xs text-subtle font-medium";
 
   return (
     <motion.div
@@ -931,7 +1138,7 @@ export function AddLineModal({
       >
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-widest text-accent">
+            <p className="text-xs uppercase tracking-widest text-accent font-semibold">
               Esquadrões
             </p>
             <h3 className="font-display text-2xl text-silver">
@@ -940,16 +1147,45 @@ export function AddLineModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-subtle hover:text-foreground"
+            className="rounded-lg p-1.5 text-subtle hover:text-foreground cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* Banner de colar ficha da line (idêntico ao de membros) */}
+          <div className="flex items-center justify-between rounded-xl border border-accent/25 bg-accent/5 p-2.5">
+            <div className="flex items-center gap-2">
+              <ClipboardPaste size={15} className="text-accent shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-silver">Colar Ficha da Line do WhatsApp / Discord</p>
+                <p className="text-[10px] text-subtle">Preenche os dados da line em 1 clique</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handlePasteIntoForm}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent hover:bg-accent/25 transition-colors cursor-pointer"
+            >
+              <ClipboardPaste size={12} />
+              Colar Tudo
+            </button>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className={labelClass}>Nome da Line *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>Nome da Line *</label>
+                <button
+                  type="button"
+                  onClick={() => pasteSpecificField("nome")}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className={fieldClass}
                 placeholder="Ex: Line 4 — Feminina"
@@ -959,10 +1195,20 @@ export function AddLineModal({
               />
             </div>
             <div>
-              <label className={labelClass}>Tag Curta *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>Tag Curta *</label>
+                <button
+                  type="button"
+                  onClick={() => pasteSpecificField("tag")}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className={fieldClass}
-                placeholder="Ex: FEMININA"
+                placeholder="Ex: FEM"
                 value={form.tag}
                 onChange={(e) => setForm((f) => ({ ...f, tag: e.target.value }))}
               />
@@ -971,7 +1217,7 @@ export function AddLineModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Status da Line</label>
+              <label className={`${labelClass} block mb-1`}>Status da Line</label>
               <select
                 className={fieldClass}
                 value={form.status}
@@ -989,7 +1235,17 @@ export function AddLineModal({
               </select>
             </div>
             <div>
-              <label className={labelClass}>Capitão / IGL (Opcional)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>Capitão / IGL</label>
+                <button
+                  type="button"
+                  onClick={() => pasteSpecificField("capitaoNick")}
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
               <input
                 className={fieldClass}
                 placeholder="LATAM 友 NICK"
@@ -1002,7 +1258,17 @@ export function AddLineModal({
           </div>
 
           <div>
-            <label className={labelClass}>Horário de Treino / Camps</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className={labelClass}>Horário de Treino / Camps</label>
+              <button
+                type="button"
+                onClick={() => pasteSpecificField("horarioTreino")}
+                className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+              >
+                <ClipboardPaste size={10} />
+                Colar
+              </button>
+            </div>
             <input
               className={fieldClass}
               placeholder="Ex: 19h30 às 23h00 (Camps Diários)"
@@ -1014,23 +1280,204 @@ export function AddLineModal({
           </div>
 
           <div className="pt-3 flex justify-end gap-2 border-t border-white/6">
-            <Button
+            <button
               type="button"
-              variant="ghost"
               onClick={onClose}
-              className="border border-white/10 text-subtle"
+              className="rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-subtle hover:text-silver px-4 py-2 text-xs font-medium transition-colors cursor-pointer"
             >
               Cancelar
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              className="bg-accent text-accent-foreground font-semibold"
+              className="rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground px-4 py-2 text-xs font-semibold shadow-[0_0_15px_rgba(0,180,255,0.25)] transition-all cursor-pointer"
             >
               {initialLine ? "Salvar Alterações" : "Criar Line"}
-            </Button>
+            </button>
           </div>
         </form>
       </motion.div>
     </motion.div>
   );
 }
+
+// ─── Modal: Colar Ficha de Line Completa ───────────────────────────────────────
+
+interface PasteLineModalProps {
+  onClose: () => void;
+  onAdd: (line: GuildLine) => void;
+}
+
+export function PasteLineModal({ onClose, onAdd }: PasteLineModalProps) {
+  const [pastedText, setPastedText] = useState("");
+  const parsed = pastedText.trim() ? parseLineFicha(pastedText) : null;
+
+  async function handlePasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      setPastedText(text);
+      playClickSound();
+      toast.success("Ficha da line colada com sucesso!");
+    } catch {
+      toast.error("Permissão de área de transferência negada.");
+    }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!parsed) {
+      toast.error("Cole os dados da line primeiro.");
+      return;
+    }
+    if (!parsed.nome || !parsed.tag) {
+      toast.error("Nome e Tag da Line são obrigatórios.");
+      return;
+    }
+
+    const newLine: GuildLine = {
+      id: `line-${Date.now()}`,
+      nome: parsed.nome,
+      tag: parsed.tag.toUpperCase(),
+      status: parsed.status,
+      horarioTreino: parsed.horarioTreino,
+      capitaoNick: parsed.capitaoNick || undefined,
+      slots: parsed.slots,
+    };
+
+    playApproveSound();
+    onAdd(newLine);
+    toast.success(`Line ${newLine.nome} criada com sucesso!`);
+    onClose();
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-[#0e131b] p-6 shadow-2xl"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+      >
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-accent font-semibold">
+              Esquadrões
+            </p>
+            <h3 className="font-display text-2xl text-silver flex items-center gap-2">
+              <ClipboardPaste size={20} className="text-accent" />
+              Colar Line do WhatsApp / Discord
+            </h3>
+            <p className="text-xs text-subtle mt-1">
+              Cole o texto da line com escalação. O sistema reconhece nome, tag, horário, capitão e jogadores!
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-subtle hover:text-foreground cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-all cursor-pointer"
+            >
+              <ClipboardPaste size={14} />
+              Colar da Área de Transferência
+            </button>
+          </div>
+
+          <div className="relative">
+            <textarea
+              className="w-full rounded-xl border border-white/10 bg-[#121821] p-3 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none resize-none font-mono text-xs"
+              rows={7}
+              placeholder={`Cole aqui a escalação da line...\n\nExemplo:\nLine 1 — LATAM Elite\nTAG: LTM\nHorário: 20h às 22h30\nCapitão: LATAM・CORINGA\n1 - LATAM・CORINGA (ID: 18274619)\n2 - LATAM・SHADOW\n3 - LATAM・VAPOR\n4 - LATAM・SNIPER`}
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {parsed && (
+            <div className="rounded-xl border border-accent/20 bg-accent/5 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-accent">
+                <span>Pré-visualização Reconhecida</span>
+                <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-bold">
+                  {parsed.tag}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-subtle text-[11px]">Nome: </span>
+                  <span className="font-semibold text-silver">{parsed.nome}</span>
+                </div>
+                <div>
+                  <span className="text-subtle text-[11px]">Horário: </span>
+                  <span className="font-semibold text-silver">{parsed.horarioTreino}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-subtle text-[11px]">Capitão: </span>
+                  <span className="font-semibold text-silver">{parsed.capitaoNick || "Não informado"}</span>
+                </div>
+              </div>
+
+              {parsed.slots.some((s) => s.jogadorNick) && (
+                <div className="mt-2 border-t border-accent/15 pt-2">
+                  <p className="text-[11px] font-semibold text-accent mb-1">Jogadores Reconhecidos:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {parsed.slots
+                      .filter((s) => s.jogadorNick)
+                      .map((s) => (
+                        <span
+                          key={s.slotNumber}
+                          className="rounded-md border border-white/10 bg-[#121821] px-2 py-0.5 text-[11px] text-silver"
+                        >
+                          #{s.slotNumber} {s.jogadorNick}
+                          {s.jogadorIdConta ? ` (${s.jogadorIdConta})` : ""}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2 border-t border-white/6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-subtle hover:text-silver py-2 text-xs font-medium transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground py-2 text-xs font-semibold shadow-[0_0_15px_rgba(0,180,255,0.25)] transition-all cursor-pointer inline-flex items-center justify-center gap-1.5"
+            >
+              <Swords size={14} />
+              Criar Line
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+

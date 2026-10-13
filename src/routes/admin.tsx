@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   CheckCircle2,
   ClipboardPaste,
   Clock,
@@ -69,17 +70,28 @@ import {
   fetchLinesSupabase,
   upsertLineSupabase,
   deleteLineSupabase,
+  fetchWarningsSupabase,
+  upsertWarningSupabase,
+  deleteWarningSupabase,
 } from "@/lib/supabase";
 import { MembrosView, MemberModal, PasteMemberModal } from "@/components/admin-members";
-import { LinesView, AddLineModal } from "@/components/admin-lines";
+import { LinesView, AddLineModal, PasteLineModal } from "@/components/admin-lines";
+import {
+  AdvertenciasView,
+  AddWarningModal,
+  RevokeWarningModal,
+} from "@/components/admin-advertencias";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import {
   type GuildMember,
   type GuildLine,
+  type GuildWarning,
   loadMembers,
   saveMembers,
   loadLines,
   saveLines,
+  loadWarnings,
+  saveWarnings,
 } from "@/lib/guild";
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
@@ -94,7 +106,9 @@ type StoredCandidate = RecruitmentValues & {
 };
 
 type FilterStatus = "todos" | "pendente" | "aprovado" | "recusado";
-type ActiveSection = "candidaturas" | "lines" | "membros";
+type ActiveSection = "candidaturas" | "lines" | "membros" | "advertencias";
+
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -837,7 +851,7 @@ function CandidateCard({
         <div className="flex shrink-0 flex-row flex-wrap gap-2 sm:flex-col sm:items-stretch">
           {candidate.status === "aprovado" && onPromote && (
             <Button
-              className="gap-2 border-accent/40 bg-accent/15 py-2 text-sm text-accent hover:bg-accent/25"
+              className="gap-2 border border-accent/40 bg-accent/15 py-2 text-sm text-accent hover:bg-accent/25 rounded-xl cursor-pointer transition-all shadow-sm"
               variant="ghost"
               onClick={() => {
                 playClickSound();
@@ -849,7 +863,7 @@ function CandidateCard({
             </Button>
           )}
           <Button
-            className="gap-2 border-emerald-500/30 bg-emerald-500/10 py-2 text-sm text-emerald-400 hover:bg-emerald-500/20"
+            className="gap-2 border border-emerald-500/30 bg-emerald-500/10 py-2 text-sm text-emerald-400 hover:bg-emerald-500/20 rounded-xl cursor-pointer transition-all shadow-sm"
             variant="ghost"
             onClick={() => onWaClick(candidate)}
           >
@@ -858,7 +872,7 @@ function CandidateCard({
           </Button>
           <Button
             variant="ghost"
-            className="gap-2 border border-white/10 py-2 text-sm text-subtle hover:text-foreground"
+            className="gap-2 border border-white/10 bg-[#121821] py-2 text-sm text-subtle hover:text-foreground hover:border-white/20 rounded-xl cursor-pointer transition-all shadow-sm"
             onClick={copyFicha}
           >
             <Copy size={14} />
@@ -866,17 +880,17 @@ function CandidateCard({
           </Button>
 
           {/* Status Actions */}
-          <div className="flex items-center justify-between gap-1 rounded-lg border border-white/8 bg-[#121821] px-2 py-1.5">
+          <div className="flex items-center justify-between gap-1 rounded-xl border border-white/10 bg-[#121821] px-2 py-1.5 shadow-sm">
             <button
               title="Aprovar"
               onClick={() => {
                 playApproveSound();
                 onStatusChange(candidate.id, "aprovado");
               }}
-              className={`rounded-md p-1.5 transition-colors ${
+              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
                 candidate.status === "aprovado"
-                  ? "text-emerald-400"
-                  : "text-subtle hover:text-emerald-400"
+                  ? "text-emerald-400 bg-emerald-500/15"
+                  : "text-subtle hover:text-emerald-400 hover:bg-white/5"
               }`}
             >
               <CheckCircle2 size={15} />
@@ -887,10 +901,10 @@ function CandidateCard({
                 playClickSound();
                 onStatusChange(candidate.id, "pendente");
               }}
-              className={`rounded-md p-1.5 transition-colors ${
+              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
                 candidate.status === "pendente"
-                  ? "text-amber-400"
-                  : "text-subtle hover:text-amber-400"
+                  ? "text-amber-400 bg-amber-500/15"
+                  : "text-subtle hover:text-amber-400 hover:bg-white/5"
               }`}
             >
               <Clock size={15} />
@@ -901,10 +915,10 @@ function CandidateCard({
                 playDenySound();
                 onStatusChange(candidate.id, "recusado");
               }}
-              className={`rounded-md p-1.5 transition-colors ${
+              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
                 candidate.status === "recusado"
-                  ? "text-red-400"
-                  : "text-subtle hover:text-red-400"
+                  ? "text-red-400 bg-red-500/15"
+                  : "text-subtle hover:text-red-400 hover:bg-white/5"
               }`}
             >
               <XCircle size={15} />
@@ -916,7 +930,7 @@ function CandidateCard({
                 playClickSound();
                 onDelete(candidate);
               }}
-              className="rounded-md p-1.5 text-subtle transition-colors hover:text-red-400"
+              className="rounded-lg p-1.5 text-subtle transition-colors hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
             >
               <Trash2 size={15} />
             </button>
@@ -1123,6 +1137,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [candidates, setCandidates] = useState<StoredCandidate[]>(loadCandidates);
   const [members, setMembers] = useState<GuildMember[]>(() => loadMembers());
   const [lines, setLines] = useState<GuildLine[]>(() => loadLines());
+  const [warnings, setWarnings] = useState<GuildWarning[]>(() => loadWarnings());
+  const [showAddWarningModal, setShowAddWarningModal] = useState(false);
+  const [initialWarnNick, setInitialWarnNick] = useState<string | undefined>(undefined);
+  const [warningToRevoke, setWarningToRevoke] = useState<GuildWarning | null>(null);
+  const [showPasteLineModal, setShowPasteLineModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("todos");
   const [search, setSearch] = useState("");
   const [funcaoFilter, setFuncaoFilter] = useState("");
@@ -1258,10 +1277,51 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     };
   }, []);
 
+  // Carregar Advertências do Supabase se tabela existir
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let isMounted = true;
+
+    fetchWarningsSupabase()
+      .then((data) => {
+        if (isMounted && data) {
+          setWarnings(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Admin] Advertências Supabase (usando local):", err?.message);
+      });
+
+    const client = getSupabase();
+    if (!client) return;
+
+    const channel = client
+      .channel("admin-advertencias-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "advertencias" },
+        () => {
+          fetchWarningsSupabase()
+            .then((data) => {
+              if (isMounted && data) setWarnings(data);
+            })
+            .catch(() => {});
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      client.removeChannel(channel);
+    };
+  }, []);
+
   // Persist on change (backup local)
   useEffect(() => saveCandidates(candidates), [candidates]);
   useEffect(() => saveMembers(members), [members]);
   useEffect(() => saveLines(lines), [lines]);
+  useEffect(() => saveWarnings(warnings), [warnings]);
+
 
   function updateStatus(id: string, status: StoredCandidate["status"]) {
     setCandidates((prev) =>
@@ -1518,7 +1578,59 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     toast.info("Vaga desescalada.");
   }
 
+  // ─── Warning Handlers ───────────────────────────────────────────────────────
+
+  function handleSaveWarning(w: GuildWarning) {
+    setWarnings((prev) => {
+      const exists = prev.some((item) => item.id === w.id);
+      if (exists) {
+        return prev.map((item) => (item.id === w.id ? w : item));
+      }
+      return [w, ...prev];
+    });
+    if (isSupabaseConfigured) {
+      upsertWarningSupabase(w).catch((e) =>
+        console.warn("Erro ao salvar advertência no Supabase:", e)
+      );
+    }
+  }
+
+  function handleRevokeWarningConfirm(justificativa: string) {
+    if (!warningToRevoke) return;
+    const updated: GuildWarning = {
+      ...warningToRevoke,
+      status: "revogada",
+      dataRevogacao: new Date().toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      motivoRevogacao: justificativa,
+    };
+    playApproveSound();
+    setWarnings((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    if (isSupabaseConfigured) {
+      upsertWarningSupabase(updated).catch(() => {});
+    }
+    toast.success(`Advertência de ${updated.memberNick} revogada!`);
+    setWarningToRevoke(null);
+  }
+
+  function handleDeleteWarning(id: string) {
+    setWarnings((prev) => prev.filter((w) => w.id !== id));
+    if (isSupabaseConfigured) {
+      deleteWarningSupabase(id).catch((e) =>
+        console.warn("Erro ao excluir advertência no Supabase:", e)
+      );
+    }
+    toast.success("Registro de advertência excluído.");
+  }
+
   // Stats
+  const activeWarningsCount = warnings.filter((w) => w.status === "ativa").length;
+
   const total = candidates.length;
   const emAnalise = candidates.filter((c) => c.status === "pendente").length;
   const aprovados = candidates.filter((c) => c.status === "aprovado").length;
@@ -1555,7 +1667,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   ];
 
   const selectClass =
-    "rounded-lg border border-white/10 bg-[#121821] px-3 py-1.5 text-sm text-foreground focus:border-accent/50 focus:outline-none";
+    "rounded-xl border border-white/10 bg-[#121821] px-3.5 py-2 text-xs font-medium text-foreground focus:border-accent/50 focus:outline-none cursor-pointer transition-all hover:border-white/20 shadow-sm";
 
   return (
     <div className="min-h-screen page-bg">
@@ -1631,6 +1743,31 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   {members.length}
                 </span>
               </button>
+
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setActiveSection("advertencias");
+                }}
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all ${
+                  activeSection === "advertencias"
+                    ? "bg-red-500/15 text-red-400 shadow-sm border border-red-500/30"
+                    : "text-subtle hover:text-foreground"
+                }`}
+              >
+                <AlertTriangle size={13} />
+                <span className="hidden sm:inline">Advertências</span>
+                <span className="sm:hidden">Adv</span>
+                {activeWarningsCount > 0 ? (
+                  <span className="rounded-full bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.2 text-[10px] font-bold">
+                    {activeWarningsCount}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-white/10 px-1.5 py-0.2 text-[10px]">
+                    0
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -1642,7 +1779,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 const m = toggleSound();
                 setMuted(m);
               }}
-              className="rounded-lg p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+              className="rounded-xl p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground cursor-pointer"
               title={muted ? "Ativar som" : "Silenciar"}
             >
               {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -1653,13 +1790,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <>
                 <button
                   onClick={exportCsv}
-                  className="rounded-lg p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+                  className="rounded-xl border border-white/10 bg-[#121821] p-2 text-subtle transition-colors hover:bg-white/5 hover:text-foreground cursor-pointer"
                   title="Exportar CSV"
                 >
                   <Download size={16} />
                 </button>
-                <Button
-                  className="gap-1.5 py-2 text-sm bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30"
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
                   onClick={() => {
                     playClickSound();
                     setShowAddModal(true);
@@ -1668,25 +1805,38 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <ClipboardPaste size={14} />
                   <span className="hidden sm:inline">Colar Ficha</span>
                   <span className="sm:hidden">Colar</span>
-                </Button>
+                </button>
               </>
             )}
 
             {activeSection === "lines" && (
-              <Button
-                className="gap-1.5 py-2 text-sm bg-accent text-accent-foreground font-semibold hover:bg-accent/90"
-                onClick={handleAddLine}
-              >
-                <Plus size={14} />
-                <span className="hidden sm:inline">Nova Line</span>
-                <span className="sm:hidden">Line</span>
-              </Button>
+              <>
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
+                  onClick={() => {
+                    playClickSound();
+                    setShowPasteLineModal(true);
+                  }}
+                >
+                  <ClipboardPaste size={14} />
+                  <span className="hidden sm:inline">Colar Ficha</span>
+                  <span className="sm:hidden">Colar</span>
+                </button>
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground px-3.5 py-2 text-xs font-semibold transition-all shadow-[0_0_15px_rgba(0,180,255,0.25)] cursor-pointer"
+                  onClick={handleAddLine}
+                >
+                  <Plus size={14} />
+                  <span className="hidden sm:inline">Nova Line</span>
+                  <span className="sm:hidden">Line</span>
+                </button>
+              </>
             )}
 
             {activeSection === "membros" && (
               <>
-                <Button
-                  className="gap-1.5 py-2 text-sm bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30"
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
                   onClick={() => {
                     playClickSound();
                     setShowPasteMemberModal(true);
@@ -1695,17 +1845,33 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   <ClipboardPaste size={14} />
                   <span className="hidden sm:inline">Colar Ficha</span>
                   <span className="sm:hidden">Colar</span>
-                </Button>
-                <Button
-                  className="gap-1.5 py-2 text-sm bg-accent text-accent-foreground font-semibold hover:bg-accent/90"
+                </button>
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-accent hover:bg-accent-hover text-accent-foreground px-3.5 py-2 text-xs font-semibold transition-all shadow-[0_0_15px_rgba(0,180,255,0.25)] cursor-pointer"
                   onClick={handleAddMember}
                 >
                   <UserPlus size={14} />
                   <span className="hidden sm:inline">Novo Membro</span>
                   <span className="sm:hidden">Membro</span>
-                </Button>
+                </button>
               </>
             )}
+
+            {activeSection === "advertencias" && (
+              <Button
+                className="gap-1.5 py-2 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/40 font-semibold rounded-xl cursor-pointer"
+                onClick={() => {
+                  playClickSound();
+                  setInitialWarnNick(undefined);
+                  setShowAddWarningModal(true);
+                }}
+              >
+                <Plus size={14} />
+                <span className="hidden sm:inline">Nova Advertência</span>
+                <span className="sm:hidden">Advertir</span>
+              </Button>
+            )}
+
 
             {/* Logout */}
             <button
@@ -1833,12 +1999,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   placeholder="Buscar por nick, nome ou cidade..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-lg border border-white/10 bg-[#121821] py-1.5 pl-8 pr-8 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none"
+                  className="w-full rounded-xl border border-white/10 bg-[#121821] py-2 pl-8 pr-8 text-xs text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none transition-colors"
                 />
                 {search && (
                   <button
                     onClick={() => setSearch("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-subtle hover:text-foreground"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-subtle hover:text-foreground cursor-pointer"
                   >
                     <X size={13} />
                   </button>
@@ -1846,7 +2012,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               </div>
 
               {/* Status tabs */}
-              <div className="flex items-center gap-0.5 rounded-lg border border-white/8 bg-[#121821] p-0.5">
+              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-[#121821] p-1">
                 {tabs.map((tab) => (
                   <button
                     key={tab.value}
@@ -1854,9 +2020,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                       playClickSound();
                       setFilterStatus(tab.value);
                     }}
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                       filterStatus === tab.value
-                        ? "bg-accent text-accent-foreground"
+                        ? "bg-accent text-accent-foreground shadow-sm"
                         : "text-subtle hover:text-foreground"
                     }`}
                   >
@@ -1904,6 +2070,18 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <option value="oldest">Mais antigos</option>
                 <option value="nick">Nick (A-Z)</option>
               </select>
+
+              {/* Colar Ficha Button */}
+              <button
+                onClick={() => {
+                  playClickSound();
+                  setShowAddModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer shrink-0"
+              >
+                <ClipboardPaste size={14} />
+                <span>Colar Ficha</span>
+              </button>
             </div>
 
             {/* ── Candidate List ── */}
@@ -1940,6 +2118,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             members={members}
             candidates={candidates}
             onAddLine={handleAddLine}
+            onPasteLine={() => {
+              playClickSound();
+              setShowPasteLineModal(true);
+            }}
             onEditLine={handleEditLine}
             onDeleteLine={handleDeleteLine}
             onAssignSlot={handleAssignSlot}
@@ -1952,6 +2134,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           <MembrosView
             members={members}
             lines={lines}
+            warnings={warnings}
             onAddMember={handleAddMember}
             onPasteMember={() => {
               playClickSound();
@@ -1959,6 +2142,24 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             }}
             onEditMember={handleEditMember}
             onDeleteMember={handleDeleteMember}
+            onWarnMember={(m) => {
+              setInitialWarnNick(m.nick);
+              setShowAddWarningModal(true);
+            }}
+          />
+        )}
+
+        {/* ── Section: Advertências ── */}
+        {activeSection === "advertencias" && (
+          <AdvertenciasView
+            warnings={warnings}
+            members={members}
+            onAddWarning={() => {
+              setInitialWarnNick(undefined);
+              setShowAddWarningModal(true);
+            }}
+            onRevokeWarning={(w) => setWarningToRevoke(w)}
+            onDeleteWarning={handleDeleteWarning}
           />
         )}
       </main>
@@ -1986,6 +2187,33 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             lines={lines}
             onClose={() => setShowPasteMemberModal(false)}
             onAdd={handleSaveMember}
+          />
+        )}
+        {showPasteLineModal && (
+          <PasteLineModal
+            key="paste-line-modal"
+            onClose={() => setShowPasteLineModal(false)}
+            onAdd={handleSaveLine}
+          />
+        )}
+        {showAddWarningModal && (
+          <AddWarningModal
+            key="add-warning-modal"
+            members={members}
+            initialMemberNick={initialWarnNick}
+            onClose={() => {
+              setShowAddWarningModal(false);
+              setInitialWarnNick(undefined);
+            }}
+            onSave={handleSaveWarning}
+          />
+        )}
+        {warningToRevoke && (
+          <RevokeWarningModal
+            key="revoke-warning-modal"
+            warning={warningToRevoke}
+            onClose={() => setWarningToRevoke(null)}
+            onConfirm={handleRevokeWarningConfirm}
           />
         )}
         {candidateToDelete && (
@@ -2022,6 +2250,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           />
         )}
       </AnimatePresence>
+
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
+  AlertTriangle,
   ClipboardPaste,
   Copy,
   Crown,
@@ -24,9 +25,11 @@ import { playApproveSound, playClickSound, playDenySound } from "@/lib/sound";
 import {
   CARGO_CONFIG,
   GUILD_MAX_MEMBERS,
+  MAX_WARNING_POINTS,
   type GuildCargo,
   type GuildLine,
   type GuildMember,
+  type GuildWarning,
 } from "@/lib/guild";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 
@@ -35,20 +38,26 @@ type MembroFilter = "todos" | "lideranca" | "capitao" | "titular" | "reserva";
 interface MembrosViewProps {
   members: GuildMember[];
   lines: GuildLine[];
+  warnings?: GuildWarning[];
   onAddMember: () => void;
   onPasteMember?: () => void;
   onEditMember: (member: GuildMember) => void;
   onDeleteMember: (id: string) => void;
+  onWarnMember?: (member: GuildMember) => void;
 }
 
 export function MembrosView({
   members,
   lines,
+  warnings = [],
   onAddMember,
   onPasteMember,
   onEditMember,
   onDeleteMember,
+  onWarnMember,
 }: MembrosViewProps) {
+
+
   const [search, setSearch] = useState("");
   const [cargoFilter, setCargoFilter] = useState<MembroFilter>("todos");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -230,7 +239,7 @@ export function MembrosView({
                 playClickSound();
                 onPasteMember();
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-all hover:bg-accent/20 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-[#121821] hover:bg-accent/15 px-3.5 py-2 text-xs font-semibold text-accent transition-all shadow-sm hover:border-accent/50 cursor-pointer"
             >
               <ClipboardPaste size={14} />
               <span className="hidden sm:inline">Colar Ficha</span>
@@ -243,7 +252,7 @@ export function MembrosView({
               playClickSound();
               onAddMember();
             }}
-            className="gap-1.5 py-2 text-xs font-semibold bg-accent text-accent-foreground"
+            className="gap-1.5 py-2 text-xs font-semibold bg-accent hover:bg-accent-hover text-accent-foreground rounded-xl cursor-pointer shadow-[0_0_15px_rgba(0,180,255,0.25)]"
           >
             <UserPlus size={14} />
             <span className="hidden sm:inline">Novo Membro</span>
@@ -289,6 +298,10 @@ export function MembrosView({
             const cargo = CARGO_CONFIG[m.cargo] || CARGO_CONFIG.membro;
             const CargoIcon = cargo.icon;
             const associatedLine = lines.find((l) => l.id === m.lineId);
+            const activeWarns = warnings.filter(
+              (w) => w.status === "ativa" && w.memberNick === m.nick
+            );
+            const warnCount = activeWarns.length;
 
             return (
               <div
@@ -318,11 +331,11 @@ export function MembrosView({
                     </span>
                   </div>
 
-                  {/* Chips: ID + Função + Line */}
+                  {/* Chips: ID + Função + Line + Advertências */}
                   <div className="flex flex-wrap gap-1.5 text-xs mb-3">
                     <button
                       onClick={() => copyId(m.idConta)}
-                      className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-[#121821] px-2 py-0.5 font-mono text-[11px] text-accent transition-colors hover:border-accent/40"
+                      className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-[#121821] px-2 py-0.5 font-mono text-[11px] text-accent transition-colors hover:border-accent/40 cursor-pointer"
                       title="Copiar ID Free Fire"
                     >
                       {copiedId === m.idConta ? (
@@ -348,6 +361,22 @@ export function MembrosView({
                         Sem Line
                       </span>
                     )}
+
+                    {warnCount > 0 && (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold border ${
+                          warnCount >= MAX_WARNING_POINTS
+                            ? "bg-red-500/20 text-red-400 border-red-500/40 animate-pulse"
+                            : warnCount === 2
+                            ? "bg-orange-500/20 text-orange-400 border-orange-500/40"
+                            : "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                        }`}
+                        title={`${warnCount} advertência(s) ativa(s)`}
+                      >
+                        <AlertTriangle size={10} />
+                        {warnCount}/{MAX_WARNING_POINTS} Adv
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -370,18 +399,30 @@ export function MembrosView({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => copyMemberFicha(m)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-[#121821] px-2 py-1 text-xs text-silver hover:border-accent/40 hover:text-accent transition-colors"
+                      className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-[#121821] px-2.5 py-1 text-xs text-silver hover:border-accent/40 hover:text-accent transition-colors cursor-pointer"
                       title="Copiar ficha do membro"
                     >
                       <Copy size={12} />
                       <span className="hidden sm:inline">Copiar</span>
                     </button>
+                    {onWarnMember && (
+                      <button
+                        onClick={() => {
+                          playClickSound();
+                          onWarnMember(m);
+                        }}
+                        className="rounded-lg p-1.5 text-subtle hover:bg-amber-500/10 hover:text-amber-400 transition-colors cursor-pointer"
+                        title="Aplicar advertência"
+                      >
+                        <AlertTriangle size={13} />
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         playClickSound();
                         onEditMember(m);
                       }}
-                      className="rounded-lg p-1.5 text-subtle hover:bg-white/5 hover:text-silver transition-colors"
+                      className="rounded-lg p-1.5 text-subtle hover:bg-white/5 hover:text-silver transition-colors cursor-pointer"
                       title="Editar membro"
                     >
                       <Pencil size={13} />
@@ -391,7 +432,7 @@ export function MembrosView({
                         playClickSound();
                         setMemberToDelete(m);
                       }}
-                      className="rounded-lg p-1.5 text-subtle hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                      className="rounded-lg p-1.5 text-subtle hover:bg-red-500/10 hover:text-red-400 transition-colors cursor-pointer"
                       title="Remover da guilda"
                     >
                       <Trash2 size={13} />

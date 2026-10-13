@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { RecruitmentValues } from "@/lib/recruitment";
-import type { GuildMember, GuildLine, GuildCargo, GuildLineSlot } from "@/lib/guild";
+import type { GuildMember, GuildLine, GuildCargo, GuildLineSlot, GuildWarning, WarningGrau, WarningStatus } from "@/lib/guild";
+
 
 export interface DbCandidate {
   id: string;
@@ -325,3 +326,109 @@ export async function deleteLineSupabase(id: string): Promise<void> {
   const { error } = await client.from("lines").delete().eq("id", id);
   if (error) throw error;
 }
+
+// ─── Warnings / Advertências ──────────────────────────────────────────────────
+
+export interface DbWarning {
+  id: string;
+  member_id: string;
+  member_nick: string;
+  member_id_conta: string | null;
+  motivo: string;
+  descricao: string | null;
+  grau: WarningGrau;
+  pontos: number;
+  data: string;
+  aplicada_por: string;
+  status: WarningStatus;
+  data_revogacao: string | null;
+  motivo_revogacao: string | null;
+  created_at?: string;
+}
+
+export function dbToWarning(db: DbWarning): GuildWarning {
+  return {
+    id: db.id,
+    memberId: db.member_id,
+    memberNick: db.member_nick,
+    memberIdConta: db.member_id_conta || undefined,
+    motivo: db.motivo,
+    descricao: db.descricao || undefined,
+    grau: db.grau,
+    pontos: db.pontos,
+    data: db.data,
+    aplicadaPor: db.aplicada_por,
+    status: db.status,
+    dataRevogacao: db.data_revogacao || undefined,
+    motivoRevogacao: db.motivo_revogacao || undefined,
+  };
+}
+
+export function warningToDb(w: GuildWarning): DbWarning {
+  return {
+    id: w.id,
+    member_id: w.memberId,
+    member_nick: w.memberNick,
+    member_id_conta: w.memberIdConta || null,
+    motivo: w.motivo,
+    descricao: w.descricao || null,
+    grau: w.grau,
+    pontos: w.pontos,
+    data: w.data,
+    aplicada_por: w.aplicadaPor,
+    status: w.status,
+    data_revogacao: w.dataRevogacao || null,
+    motivo_revogacao: w.motivoRevogacao || null,
+  };
+}
+
+export async function fetchWarningsSupabase(): Promise<GuildWarning[] | null> {
+  const client = getSupabase();
+  if (!client) return null;
+
+  try {
+    const { data, error } = await client
+      .from("advertencias")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.warn("Tabela advertencias não encontrada ou inacessível no Supabase:", error.message);
+      return null;
+    }
+    return ((data || []) as DbWarning[]).map(dbToWarning);
+  } catch (err) {
+    console.warn("Falha ao buscar advertencias do Supabase:", err);
+    return null;
+  }
+}
+
+export async function upsertWarningSupabase(w: GuildWarning): Promise<void> {
+  const client = getSupabase();
+  if (!client) return;
+
+  try {
+    const row = warningToDb(w);
+    const { error } = await client.from("advertencias").upsert(row);
+    if (error) {
+      console.warn("Supabase upsertWarning falhou:", error.message);
+    }
+  } catch (err) {
+    console.warn("Erro ao salvar advertência no Supabase:", err);
+  }
+}
+
+export async function deleteWarningSupabase(id: string): Promise<void> {
+  const client = getSupabase();
+  if (!client) return;
+
+  try {
+    const { error } = await client.from("advertencias").delete().eq("id", id);
+    if (error) {
+      console.warn("Supabase deleteWarning falhou:", error.message);
+    }
+  } catch (err) {
+    console.warn("Erro ao deletar advertência no Supabase:", err);
+  }
+}
+
