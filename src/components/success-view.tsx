@@ -1,12 +1,10 @@
-import { Check, Copy, MessageCircle, RotateCcw, Share2, Sparkles, Trophy } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   displayValue,
   FIELD_LABELS,
-  formatApplicationMessage,
   GUILD_MARK,
   GUILD_NAME,
   type RecruitmentValues,
@@ -36,29 +34,10 @@ type SuccessViewProps = {
 
 export function SuccessView({ values, onReset }: SuccessViewProps) {
   const reduce = useReducedMotion();
-  const [copied, setCopied] = useState(false);
-  const message = formatApplicationMessage(values);
 
   useEffect(() => {
     playSuccessSound();
   }, []);
-
-  async function copyMessage() {
-    try {
-      await navigator.clipboard.writeText(message);
-      setCopied(true);
-      toast.success("Ficha da candidatura copiada!");
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      toast.error("Não foi possível copiar automaticamente. Selecione e copie o texto abaixo.");
-    }
-  }
-
-  // Se houver número da liderança nas variáveis de ambiente, direciona para lá, senão abre o seletor do WhatsApp
-  const leadershipPhone = import.meta.env.VITE_LEADERSHIP_WHATSAPP || "";
-  const whatsappUrl = leadershipPhone
-    ? `https://api.whatsapp.com/send?phone=${leadershipPhone.replace(/\D/g, "")}&text=${encodeURIComponent(message)}`
-    : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
 
   // Protocolo determinístico baseado no ID do jogador (evita erro de hidratação SSR)
   const protocolId = values.idConta
@@ -86,32 +65,9 @@ export function SuccessView({ values, onReset }: SuccessViewProps) {
         <h2 className="font-display mt-4 text-4xl tracking-wide text-silver">
           Candidatura Registrada!
         </h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-normal text-muted-foreground">
+        <p className="mx-auto mt-2 max-w-md text-sm leading-normal text-muted-foreground pb-2">
           Sua ficha foi salva e enviada. A liderança da <strong className="text-silver">{GUILD_NAME} {GUILD_MARK}</strong> irá avaliar suas informações e chamar no WhatsApp.
         </p>
-
-        {/* Botões de Ação Imediata */}
-        <div className="mt-6 flex flex-col sm:flex-row gap-2.5 justify-center">
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 font-medium min-h-11 rounded-lg px-5 text-sm bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all duration-150 active:scale-95"
-          >
-            <MessageCircle className="size-4.5" />
-            Enviar Ficha no WhatsApp
-          </a>
-
-          <Button
-            variant="secondary"
-            size="default"
-            className="min-h-11 text-sm"
-            onClick={copyMessage}
-          >
-            {copied ? <Check className="size-4 text-accent" /> : <Copy className="size-4" />}
-            {copied ? "Copiado!" : "Copiar Ficha"}
-          </Button>
-        </div>
       </motion.div>
 
       {/* Cartão Tático 3D do Jogador (VIP Holographic Player Badge) */}
