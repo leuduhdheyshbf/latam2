@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { RecruitmentValues } from "@/lib/recruitment";
+import type { GuildMember, GuildLine, GuildCargo, GuildLineSlot } from "@/lib/guild";
 
 export interface DbCandidate {
   id: string;
@@ -174,4 +175,153 @@ export async function deleteCandidateSupabase(id: string): Promise<void> {
     console.error("[Supabase] Erro ao deletar candidato:", error);
     throw error;
   }
+}
+
+// ─── Membros ───────────────────────────────────────────────────────────────────
+
+export interface DbMember {
+  id: string;
+  nick: string;
+  nome: string;
+  id_conta: string;
+  whatsapp: string;
+  cargo: string;
+  funcao: string;
+  patente: string;
+  line_id: string | null;
+  status: "ativo" | "inativo";
+  entrou_em: string | null;
+  nota: string | null;
+  created_at?: string;
+}
+
+export function dbToMember(db: DbMember): GuildMember {
+  return {
+    id: db.id,
+    nick: db.nick,
+    nome: db.nome || "",
+    idConta: db.id_conta,
+    whatsapp: db.whatsapp || "",
+    cargo: (db.cargo || "titular") as GuildCargo,
+    funcao: db.funcao || "rush",
+    patente: db.patente || "diamente_mestre",
+    lineId: db.line_id || undefined,
+    status: db.status || "ativo",
+    entrouEm: db.entrou_em || undefined,
+    nota: db.nota || undefined,
+  };
+}
+
+export function memberToDb(m: GuildMember): DbMember {
+  return {
+    id: m.id,
+    nick: m.nick,
+    nome: m.nome,
+    id_conta: m.idConta,
+    whatsapp: m.whatsapp,
+    cargo: m.cargo,
+    funcao: m.funcao,
+    patente: m.patente,
+    line_id: m.lineId || null,
+    status: m.status,
+    entrou_em: m.entrouEm || null,
+    nota: m.nota || null,
+  };
+}
+
+export async function fetchMembersSupabase(): Promise<GuildMember[] | null> {
+  const client = getSupabase();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from("membros")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return ((data || []) as DbMember[]).map(dbToMember);
+}
+
+export async function upsertMemberSupabase(m: GuildMember): Promise<void> {
+  const client = getSupabase();
+  if (!client) return;
+
+  const row = memberToDb(m);
+  const { error } = await client.from("membros").upsert(row);
+  if (error) throw error;
+}
+
+export async function deleteMemberSupabase(id: string): Promise<void> {
+  const client = getSupabase();
+  if (!client) return;
+
+  const { error } = await client.from("membros").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ─── Lines ─────────────────────────────────────────────────────────────────────
+
+export interface DbLine {
+  id: string;
+  nome: string;
+  tag: string;
+  status: "completa" | "buscando_rush" | "buscando_suporte" | "em_treino";
+  horario_treino: string;
+  capitao_nick: string | null;
+  slots: GuildLineSlot[];
+  created_at?: string;
+}
+
+export function dbToLine(db: DbLine): GuildLine {
+  return {
+    id: db.id,
+    nome: db.nome,
+    tag: db.tag,
+    status: db.status,
+    horarioTreino: db.horario_treino,
+    capitaoNick: db.capitao_nick || undefined,
+    slots: Array.isArray(db.slots) ? db.slots : [],
+  };
+}
+
+export function lineToDb(l: GuildLine): DbLine {
+  return {
+    id: l.id,
+    nome: l.nome,
+    tag: l.tag,
+    status: l.status,
+    horario_treino: l.horarioTreino,
+    capitao_nick: l.capitaoNick || null,
+    slots: l.slots,
+  };
+}
+
+export async function fetchLinesSupabase(): Promise<GuildLine[] | null> {
+  const client = getSupabase();
+  if (!client) return null;
+
+  const { data, error } = await client
+    .from("lines")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return ((data || []) as DbLine[]).map(dbToLine);
+}
+
+export async function upsertLineSupabase(l: GuildLine): Promise<void> {
+  const client = getSupabase();
+  if (!client) return;
+
+  const row = lineToDb(l);
+  const { error } = await client.from("lines").upsert(row);
+  if (error) throw error;
+}
+
+export async function deleteLineSupabase(id: string): Promise<void> {
+  const client = getSupabase();
+  if (!client) return;
+
+  const { error } = await client.from("lines").delete().eq("id", id);
+  if (error) throw error;
 }

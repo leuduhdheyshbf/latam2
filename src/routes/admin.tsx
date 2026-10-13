@@ -63,6 +63,12 @@ import {
   insertCandidateSupabase,
   isSupabaseConfigured,
   updateCandidateSupabase,
+  fetchMembersSupabase,
+  upsertMemberSupabase,
+  deleteMemberSupabase,
+  fetchLinesSupabase,
+  upsertLineSupabase,
+  deleteLineSupabase,
 } from "@/lib/supabase";
 import { MembrosView, MemberModal, PasteMemberModal } from "@/components/admin-members";
 import { LinesView, AddLineModal } from "@/components/admin-lines";
@@ -1174,6 +1180,84 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     };
   }, []);
 
+  // Carregar Membros do Supabase se tabela existir
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let isMounted = true;
+
+    fetchMembersSupabase()
+      .then((data) => {
+        if (isMounted && data) {
+          setMembers(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Admin] Membros Supabase (usando local):", err?.message);
+      });
+
+    const client = getSupabase();
+    if (!client) return;
+
+    const channel = client
+      .channel("admin-membros-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "membros" },
+        () => {
+          fetchMembersSupabase()
+            .then((data) => {
+              if (isMounted && data) setMembers(data);
+            })
+            .catch(() => {});
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      client.removeChannel(channel);
+    };
+  }, []);
+
+  // Carregar Lines do Supabase se tabela existir
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let isMounted = true;
+
+    fetchLinesSupabase()
+      .then((data) => {
+        if (isMounted && data) {
+          setLines(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Admin] Lines Supabase (usando local):", err?.message);
+      });
+
+    const client = getSupabase();
+    if (!client) return;
+
+    const channel = client
+      .channel("admin-lines-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "lines" },
+        () => {
+          fetchLinesSupabase()
+            .then((data) => {
+              if (isMounted && data) setLines(data);
+            })
+            .catch(() => {});
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      client.removeChannel(channel);
+    };
+  }, []);
+
   // Persist on change (backup local)
   useEffect(() => saveCandidates(candidates), [candidates]);
   useEffect(() => saveMembers(members), [members]);
@@ -1278,16 +1362,29 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   function handleDeleteMember(id: string) {
     playDenySound();
     setMembers((prev) => prev.filter((m) => m.id !== id));
+    if (isSupabaseConfigured) {
+      deleteMemberSupabase(id).catch((e) =>
+        console.warn("Erro ao deletar membro no Supabase:", e)
+      );
+    }
     // Clear from line slots
     setLines((prev) =>
-      prev.map((line) => ({
-        ...line,
-        slots: line.slots.map((s) =>
-          s.jogadorId === id
-            ? { ...s, jogadorNick: "", jogadorId: undefined, jogadorIdConta: undefined }
-            : s,
-        ),
-      })),
+      prev.map((line) => {
+        const hasSlot = line.slots.some((s) => s.jogadorId === id);
+        if (!hasSlot) return line;
+        const updated = {
+          ...line,
+          slots: line.slots.map((s) =>
+            s.jogadorId === id
+              ? { ...s, jogadorNick: "", jogadorId: undefined, jogadorIdConta: undefined }
+              : s,
+          ),
+        };
+        if (isSupabaseConfigured) {
+          upsertLineSupabase(updated).catch(() => {});
+        }
+        return updated;
+      }),
     );
     toast.success("Membro removido do roster.");
   }
@@ -1300,6 +1397,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       }
       return [saved, ...prev];
     });
+    if (isSupabaseConfigured) {
+      upsertMemberSupabase(saved).catch((e) =>
+        console.warn("Erro ao salvar membro no Supabase:", e)
+      );
+    }
     setMemberModal({ isOpen: false });
   }
 
@@ -1337,6 +1439,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   function handleDeleteLine(lineId: string) {
     playDenySound();
     setLines((prev) => prev.filter((l) => l.id !== lineId));
+    if (isSupabaseConfigured) {
+      deleteLineSupabase(lineId).catch((e) =>
+        console.warn("Erro ao deletar line no Supabase:", e)
+      );
+    }
     toast.success("Line excluída com sucesso.");
   }
 
@@ -1348,6 +1455,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       }
       return [...prev, saved];
     });
+    if (isSupabaseConfigured) {
+      upsertLineSupabase(saved).catch((e) =>
+        console.warn("Erro ao salvar line no Supabase:", e)
+      );
+    }
     setLineModal({ isOpen: false });
   }
 
@@ -1361,7 +1473,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setLines((prev) =>
       prev.map((line) => {
         if (line.id !== lineId) return line;
-        return {
+        const updated = {
           ...line,
           slots: line.slots.map((s) => {
             if (s.slotNumber !== slotNumber) return s;
@@ -1373,6 +1485,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             };
           }),
         };
+        if (isSupabaseConfigured) {
+          upsertLineSupabase(updated).catch(() => {});
+        }
+        return updated;
       }),
     );
   }
@@ -1381,7 +1497,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setLines((prev) =>
       prev.map((line) => {
         if (line.id !== lineId) return line;
-        return {
+        const updated = {
           ...line,
           slots: line.slots.map((s) => {
             if (s.slotNumber !== slotNumber) return s;
@@ -1393,6 +1509,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             };
           }),
         };
+        if (isSupabaseConfigured) {
+          upsertLineSupabase(updated).catch(() => {});
+        }
+        return updated;
       }),
     );
     toast.info("Vaga desescalada.");
