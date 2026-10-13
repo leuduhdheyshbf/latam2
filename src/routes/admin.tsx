@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CheckCircle2,
+  ClipboardPaste,
   Clock,
   Copy,
   Download,
@@ -13,6 +14,7 @@ import {
   MessageCircle,
   Search,
   ShieldCheck,
+  Sparkles,
   Swords,
   Trash2,
   Trophy,
@@ -381,6 +383,116 @@ function WhatsAppModal({
 
 // ─── Add Player Modal ─────────────────────────────────────────────────────────
 
+function parseFichaText(raw: string) {
+  const clean = raw.replace(/[*_#~]/g, "");
+  const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  let nick = "";
+  let idConta = "";
+  let nome = "";
+  let idade = "18";
+  let whatsapp = "";
+  let cidadeEstado = "Brasil";
+  let funcao = "rush";
+  let patenteAtual = "diamente_mestre";
+  let tempoDisponivel = "2-4h";
+  let horarioDisponivel = "";
+  let experienciaDescricao = "";
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+
+    if (lower.startsWith("nick:") || lower.startsWith("nickname:")) {
+      nick = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (lower.startsWith("nome:")) {
+      const val = line.split(/:(.+)/)[1]?.trim() || "";
+      const matchAge = val.match(/(.*?)(?:,\s*(\d{1,2})\s*anos?)?$/i);
+      if (matchAge) {
+        nome = matchAge[1]?.trim() || val;
+        if (matchAge[2]) idade = matchAge[2];
+      } else {
+        nome = val;
+      }
+    } else if (lower.startsWith("idade:")) {
+      const digits = line.replace(/\D/g, "");
+      if (digits) idade = digits;
+    } else if (lower.startsWith("cidade:") || lower.startsWith("cidade/estado:")) {
+      cidadeEstado = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (
+      lower.startsWith("whatsapp:") ||
+      lower.startsWith("whats:") ||
+      lower.startsWith("zap:") ||
+      lower.startsWith("telefone:")
+    ) {
+      whatsapp = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (
+      lower.startsWith("id:") ||
+      lower.startsWith("id da conta:") ||
+      lower.startsWith("id free fire:")
+    ) {
+      idConta = line.split(/:(.+)/)[1]?.replace(/\D/g, "") || "";
+    } else if (lower.startsWith("função:") || lower.startsWith("funcao:")) {
+      const fVal = lower.split(/:(.+)/)[1]?.trim() || "";
+      if (fVal.includes("suporte")) funcao = "suporte";
+      else if (fVal.includes("fuzil")) funcao = "fuzileiro";
+      else if (fVal.includes("granad")) funcao = "granadeiro";
+      else if (fVal.includes("gas") || fVal.includes("gás")) funcao = "full_gas";
+      else if (fVal.includes("cura")) funcao = "cura";
+      else if (fVal.includes("flex")) funcao = "flexivel";
+      else funcao = "rush";
+    } else if (lower.startsWith("patente:")) {
+      const pVal = lower.split(/:(.+)/)[1]?.trim() || "";
+      if (pVal.includes("elite")) patenteAtual = "elite";
+      else if (pVal.includes("mestre") || pVal.includes("diamante")) patenteAtual = "diamente_mestre";
+      else if (pVal.includes("platina")) patenteAtual = "platina_diamente";
+      else if (pVal.includes("ouro")) patenteAtual = "ouro_platina";
+      else patenteAtual = "diamente_mestre";
+    } else if (lower.startsWith("horário:") || lower.startsWith("horario:")) {
+      horarioDisponivel = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (lower.startsWith("disponibilidade:") || lower.startsWith("tempo:")) {
+      const tVal = lower.split(/:(.+)/)[1]?.trim() || "";
+      if (tVal.includes("4")) tempoDisponivel = "4+h";
+      else if (tVal.includes("2")) tempoDisponivel = "2-4h";
+      else tempoDisponivel = "1-2h";
+    } else if (lower.startsWith("histórico:") || lower.startsWith("historico:")) {
+      experienciaDescricao = line.split(/:(.+)/)[1]?.trim() || "";
+    }
+  }
+
+  // Fallbacks regex
+  if (!idConta) {
+    const idMatch = clean.match(/\b(\d{7,12})\b/);
+    if (idMatch) idConta = idMatch[1];
+  }
+  if (!whatsapp) {
+    const zapMatch = clean.match(/(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?9?\d{4}[-\s]?\d{4}/);
+    if (zapMatch) whatsapp = zapMatch[0];
+  }
+  if (!nick) {
+    const firstNonHeader = lines.find(
+      (l) => !l.toLowerCase().includes("latam") && !l.toLowerCase().includes("candidatura")
+    );
+    if (firstNonHeader) {
+      nick = firstNonHeader.slice(0, 24);
+    }
+  }
+
+  return {
+    nick: nick || "Recruta",
+    idConta: idConta || String(Date.now()).slice(-8),
+    nome: nome || nick || "Recruta",
+    idade,
+    cidadeEstado,
+    whatsapp: whatsapp || "(11) 99999-9999",
+    funcao,
+    patenteAtual,
+    tempoDisponivel,
+    horarioDisponivel: horarioDisponivel || "A combinar",
+    experienciaCompetitiva: experienciaDescricao ? "sim" : "nao",
+    experienciaDescricao,
+  };
+}
+
 function AddPlayerModal({
   onClose,
   onAdd,
@@ -388,37 +500,44 @@ function AddPlayerModal({
   onClose: () => void;
   onAdd: (c: StoredCandidate) => void;
 }) {
-  const [form, setForm] = useState({
-    nick: "",
-    idConta: "",
-    nome: "",
-    whatsapp: "",
-    funcao: "",
-    patenteAtual: "",
-    horarioDisponivel: "",
-    staffNote: "",
-  });
+  const [pastedText, setPastedText] = useState("");
+  const parsed = pastedText.trim() ? parseFichaText(pastedText) : null;
+
+  async function handlePasteFromClipboard() {
+    try {
+      const clipText = await navigator.clipboard.readText();
+      if (clipText && clipText.trim()) {
+        setPastedText(clipText);
+        toast.success("Texto colado da área de transferência!");
+      } else {
+        toast.error("A área de transferência está vazia.");
+      }
+    } catch {
+      toast.info("Pressione Ctrl+V no campo para colar.");
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.nick.trim() || !form.idConta.trim() || !form.whatsapp.trim()) {
-      toast.error("Preencha os campos obrigatórios.");
+    if (!pastedText.trim()) {
+      toast.error("Cole o texto da ficha antes de adicionar.");
       return;
     }
+    const data = parseFichaText(pastedText);
     const candidate: StoredCandidate = {
       id: `cand-${Date.now()}`,
-      nick: form.nick.trim(),
-      idConta: form.idConta.trim(),
-      nome: form.nome.trim(),
-      whatsapp: form.whatsapp.trim(),
-      funcao: form.funcao,
-      patenteAtual: form.patenteAtual,
-      idade: "",
-      cidadeEstado: "",
-      experienciaCompetitiva: "nao",
-      experienciaDescricao: "",
-      tempoDisponivel: "",
-      horarioDisponivel: form.horarioDisponivel.trim(),
+      nick: data.nick,
+      idConta: data.idConta,
+      nome: data.nome,
+      whatsapp: data.whatsapp,
+      funcao: data.funcao,
+      patenteAtual: data.patenteAtual,
+      idade: data.idade,
+      cidadeEstado: data.cidadeEstado,
+      experienciaCompetitiva: data.experienciaCompetitiva,
+      experienciaDescricao: data.experienciaDescricao,
+      tempoDisponivel: data.tempoDisponivel,
+      horarioDisponivel: data.horarioDisponivel,
       submittedAt: new Date().toLocaleString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
@@ -426,17 +545,13 @@ function AddPlayerModal({
         minute: "2-digit",
       }),
       status: "pendente",
-      staffNote: form.staffNote.trim(),
+      staffNote: "Importado via Colar Ficha",
     };
     playApproveSound();
     onAdd(candidate);
     toast.success(`${candidate.nick} adicionado à lista.`);
     onClose();
   }
-
-  const fieldClass =
-    "w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none";
-  const labelClass = "block text-xs text-subtle mb-1";
 
   return (
     <motion.div
@@ -446,7 +561,7 @@ function AddPlayerModal({
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
         onClick={onClose}
       />
       <motion.div
@@ -456,12 +571,17 @@ function AddPlayerModal({
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
       >
-        <div className="mb-5 flex items-start justify-between">
+        <div className="mb-4 flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-accent">
               Candidatos
             </p>
-            <h3 className="font-display text-2xl text-silver">+ Novo Jogador</h3>
+            <h3 className="font-display text-2xl text-silver flex items-center gap-2">
+              📋 Colar Ficha Completa
+            </h3>
+            <p className="text-xs text-subtle mt-1">
+              Cole o texto enviado pelo jogador (WhatsApp, Discord ou Instagram). O sistema extrai todos os dados na hora!
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -471,118 +591,66 @@ function AddPlayerModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>
-                Nick <span className="text-red-400">*</span>
-              </label>
-              <input
-                className={fieldClass}
-                placeholder="NICK_FF"
-                value={form.nick}
-                onChange={(e) => setForm((f) => ({ ...f, nick: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>
-                ID da Conta <span className="text-red-400">*</span>
-              </label>
-              <input
-                className={fieldClass}
-                placeholder="123456789"
-                value={form.idConta}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, idConta: maskPlayerId(e.target.value) }))
-                }
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 cursor-pointer"
+            >
+              <ClipboardPaste size={14} />
+              Colar da Área de Transferência
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Nome</label>
-              <input
-                className={fieldClass}
-                placeholder="Nome completo"
-                value={form.nome}
-                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>
-                WhatsApp <span className="text-red-400">*</span>
-              </label>
-              <input
-                className={fieldClass}
-                placeholder="(11) 9xxxx-xxxx"
-                value={form.whatsapp}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, whatsapp: maskPhone(e.target.value) }))
-                }
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass}>Função</label>
-              <select
-                className={fieldClass}
-                value={form.funcao}
-                onChange={(e) => setForm((f) => ({ ...f, funcao: e.target.value }))}
-              >
-                <option value="">Selecionar...</option>
-                {FUNCOES.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Patente</label>
-              <select
-                className={fieldClass}
-                value={form.patenteAtual}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, patenteAtual: e.target.value }))
-                }
-              >
-                <option value="">Selecionar...</option>
-                {PATENTES_LATAM.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Horário Disponível</label>
-            <input
-              className={fieldClass}
-              placeholder="Ex: 19h às 23h"
-              value={form.horarioDisponivel}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, horarioDisponivel: e.target.value }))
-              }
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>Nota Staff</label>
+          <div className="relative">
             <textarea
-              className={`${fieldClass} resize-none`}
-              rows={2}
-              placeholder="Observações internas..."
-              value={form.staffNote}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, staffNote: e.target.value }))
-              }
+              className="w-full rounded-xl border border-white/10 bg-[#121821] p-3 text-sm text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none resize-none font-mono text-xs"
+              rows={8}
+              placeholder={`Cole aqui o texto ou ficha inteira do jogador...\n\nExemplo:\nNick: LUK4S_FF\nNome: Lucas Souza\nWhatsApp: (11) 98844-2211\nID da conta: 189420392\nFunção: Rush\nPatente: Mestre`}
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              autoFocus
             />
           </div>
+
+          {parsed && (
+            <div className="rounded-xl border border-accent/20 bg-accent/5 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-accent">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles size={13} />
+                  Dados Identificados
+                </span>
+                <span className="text-[11px] text-emerald-400">✓ Pronto para adicionar</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Nick</span>
+                  <span className="font-semibold text-silver truncate block">{parsed.nick}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">ID</span>
+                  <span className="font-mono text-accent truncate block">{parsed.idConta}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">WhatsApp</span>
+                  <span className="text-silver truncate block">{parsed.whatsapp}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Função</span>
+                  <span className="text-silver capitalize truncate block">{parsed.funcao}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Patente</span>
+                  <span className="text-silver capitalize truncate block">{labelOf(PATENTES_LATAM, parsed.patenteAtual)}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Nome</span>
+                  <span className="text-silver truncate block">{parsed.nome}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 pt-1">
             <Button
@@ -593,9 +661,13 @@ function AddPlayerModal({
             >
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1 gap-2">
+            <Button
+              type="submit"
+              className="flex-1 gap-2"
+              disabled={!pastedText.trim()}
+            >
               <UserPlus size={15} />
-              Adicionar
+              Adicionar Jogador
             </Button>
           </div>
         </form>
@@ -603,6 +675,7 @@ function AddPlayerModal({
     </motion.div>
   );
 }
+
 
 // ─── Candidate Card ───────────────────────────────────────────────────────────
 
@@ -1293,17 +1366,17 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <Download size={16} />
             </button>
 
-            {/* Add player */}
+            {/* Colar Ficha */}
             <Button
-              className="gap-1.5 py-2 text-sm"
+              className="gap-1.5 py-2 text-sm bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30"
               onClick={() => {
                 playClickSound();
                 setShowAddModal(true);
               }}
             >
-              <UserPlus size={14} />
-              <span className="hidden sm:inline">+ Novo Jogador</span>
-              <span className="sm:hidden">+</span>
+              <ClipboardPaste size={14} />
+              <span className="hidden sm:inline">Colar Ficha</span>
+              <span className="sm:hidden">Colar</span>
             </Button>
 
             {/* Logout */}
