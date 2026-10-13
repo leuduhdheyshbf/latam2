@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
+  ClipboardPaste,
   Copy,
   Crown,
   MessageCircle,
   Pencil,
   Search,
   Shield,
+  Sparkles,
   Trash2,
   Trophy,
   UserCheck,
@@ -34,6 +36,7 @@ interface MembrosViewProps {
   members: GuildMember[];
   lines: GuildLine[];
   onAddMember: () => void;
+  onPasteMember?: () => void;
   onEditMember: (member: GuildMember) => void;
   onDeleteMember: (id: string) => void;
 }
@@ -42,6 +45,7 @@ export function MembrosView({
   members,
   lines,
   onAddMember,
+  onPasteMember,
   onEditMember,
   onDeleteMember,
 }: MembrosViewProps) {
@@ -154,7 +158,7 @@ export function MembrosView({
       </div>
 
       {/* ── Barra de Busca e Filtros ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search
             size={14}
@@ -168,31 +172,59 @@ export function MembrosView({
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1 bg-[#121821] p-1 rounded-xl border border-white/10">
-          {(
-            [
-              { value: "todos", label: "Todos" },
-              { value: "lideranca", label: "Liderança" },
-              { value: "capitao", label: "Capitães" },
-              { value: "titular", label: "Titulares" },
-              { value: "reserva", label: "Reservas" },
-            ] as const
-          ).map((tab) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1 bg-[#121821] p-1 rounded-xl border border-white/10">
+            {(
+              [
+                { value: "todos", label: "Todos" },
+                { value: "lideranca", label: "Liderança" },
+                { value: "capitao", label: "Capitães" },
+                { value: "titular", label: "Titulares" },
+                { value: "reserva", label: "Reservas" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  playClickSound();
+                  setCargoFilter(tab.value);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  cargoFilter === tab.value
+                    ? "bg-accent/20 text-accent border border-accent/30"
+                    : "text-subtle hover:text-silver"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {onPasteMember && (
             <button
-              key={tab.value}
               onClick={() => {
                 playClickSound();
-                setCargoFilter(tab.value);
+                onPasteMember();
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                cargoFilter === tab.value
-                  ? "bg-accent/20 text-accent border border-accent/30"
-                  : "text-subtle hover:text-silver"
-              }`}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-semibold text-accent transition-all hover:bg-accent/20 cursor-pointer"
             >
-              {tab.label}
+              <ClipboardPaste size={14} />
+              <span className="hidden sm:inline">Colar Ficha</span>
+              <span className="sm:hidden">Colar</span>
             </button>
-          ))}
+          )}
+
+          <Button
+            onClick={() => {
+              playClickSound();
+              onAddMember();
+            }}
+            className="gap-1.5 py-2 text-xs font-semibold bg-accent text-accent-foreground"
+          >
+            <UserPlus size={14} />
+            <span className="hidden sm:inline">Novo Membro</span>
+            <span className="sm:hidden">Novo</span>
+          </Button>
         </div>
       </div>
 
@@ -200,7 +232,32 @@ export function MembrosView({
       {filtered.length === 0 ? (
         <div className="py-20 text-center rounded-xl border border-white/5 bg-[#0e131b]">
           <Users size={32} className="mx-auto mb-3 text-subtle/40" />
-          <p className="text-subtle">Nenhum membro encontrado com esse filtro.</p>
+          <p className="text-subtle mb-4">Nenhum membro encontrado com esse filtro.</p>
+          <div className="flex items-center justify-center gap-2">
+            {onPasteMember && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  playClickSound();
+                  onPasteMember();
+                }}
+                className="gap-1.5 border border-accent/30 bg-accent/10 text-accent hover:bg-accent/20 text-xs"
+              >
+                <ClipboardPaste size={14} />
+                Colar Ficha de Membro
+              </Button>
+            )}
+            <Button
+              onClick={() => {
+                playClickSound();
+                onAddMember();
+              }}
+              className="gap-1.5 text-xs bg-accent text-accent-foreground font-semibold"
+            >
+              <UserPlus size={14} />
+              Novo Membro Manual
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -364,6 +421,31 @@ export function MemberModal({
     nota: initialData?.nota || "",
   });
 
+  async function handlePasteIntoForm() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      const parsed = parseMemberFicha(text);
+      setForm((prev) => ({
+        ...prev,
+        nick: parsed.nick || prev.nick,
+        nome: parsed.nome || prev.nome,
+        idConta: parsed.idConta || prev.idConta,
+        whatsapp: parsed.whatsapp || prev.whatsapp,
+        cargo: parsed.cargo || prev.cargo,
+        funcao: parsed.funcao || prev.funcao,
+        patente: parsed.patente || prev.patente,
+      }));
+      playApproveSound();
+      toast.success("Dados colados e preenchidos automaticamente!");
+    } catch {
+      toast.error("Permissão de área de transferência necessária.");
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.nick.trim() || !form.idConta.trim()) {
@@ -431,12 +513,25 @@ export function MemberModal({
               {initialData?.id ? "Editar Membro" : "+ Oficializar Membro"}
             </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-subtle hover:text-foreground"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            {!initialData?.id && (
+              <button
+                type="button"
+                onClick={handlePasteIntoForm}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 cursor-pointer"
+                title="Colar dados da área de transferência e preencher formulário"
+              >
+                <ClipboardPaste size={13} />
+                <span>Colar Ficha</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-subtle hover:text-foreground"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -567,6 +662,325 @@ export function MemberModal({
             <Button type="submit" className="flex-1 gap-2">
               <UserCheck size={15} />
               Salvar Membro
+            </Button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Parser da Ficha do Membro ───────────────────────────────────────────────
+
+export function parseMemberFicha(raw: string) {
+  const clean = raw.replace(/[*_#~]/g, "");
+  const lines = clean.split("\n").map((l) => l.trim()).filter(Boolean);
+
+  let nick = "";
+  let idConta = "";
+  let nome = "";
+  let whatsapp = "";
+  let cargo: GuildCargo = "titular";
+  let funcao = "rush";
+  let patente = "diamente_mestre";
+  let nota = "";
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+
+    if (lower.startsWith("nick:") || lower.startsWith("nickname:")) {
+      nick = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (lower.startsWith("nome:")) {
+      nome = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (
+      lower.startsWith("whatsapp:") ||
+      lower.startsWith("whats:") ||
+      lower.startsWith("zap:") ||
+      lower.startsWith("telefone:")
+    ) {
+      whatsapp = line.split(/:(.+)/)[1]?.trim() || "";
+    } else if (
+      lower.startsWith("id:") ||
+      lower.startsWith("id da conta:") ||
+      lower.startsWith("id free fire:")
+    ) {
+      idConta = line.split(/:(.+)/)[1]?.replace(/\D/g, "") || "";
+    } else if (lower.startsWith("cargo:")) {
+      const cVal = lower.split(/:(.+)/)[1]?.trim() || "";
+      if (cVal.includes("lider") && !cVal.includes("vice")) cargo = "lider";
+      else if (cVal.includes("vice")) cargo = "vice_lider";
+      else if (cVal.includes("capitao") || cVal.includes("capitão")) cargo = "capitao";
+      else if (cVal.includes("reserva")) cargo = "reserva";
+      else if (cVal.includes("membro")) cargo = "membro";
+      else cargo = "titular";
+    } else if (lower.startsWith("função:") || lower.startsWith("funcao:")) {
+      const fVal = lower.split(/:(.+)/)[1]?.trim() || "";
+      if (fVal.includes("suporte")) funcao = "suporte";
+      else if (fVal.includes("fuzil")) funcao = "fuzileiro";
+      else if (fVal.includes("granad")) funcao = "granadeiro";
+      else if (fVal.includes("gas") || fVal.includes("gás")) funcao = "full_gas";
+      else if (fVal.includes("cura")) funcao = "cura";
+      else if (fVal.includes("flex")) funcao = "flexivel";
+      else funcao = "rush";
+    } else if (lower.startsWith("patente:")) {
+      const pVal = lower.split(/:(.+)/)[1]?.trim() || "";
+      if (pVal.includes("elite")) patente = "elite";
+      else if (pVal.includes("mestre") || pVal.includes("diamante")) patente = "diamente_mestre";
+      else if (pVal.includes("platina")) patente = "platina_diamente";
+      else if (pVal.includes("ouro")) patente = "ouro_platina";
+    }
+  }
+
+  // Fallbacks regex
+  if (!idConta) {
+    const idMatch = clean.match(/\b(\d{7,12})\b/);
+    if (idMatch) idConta = idMatch[1];
+  }
+  if (!whatsapp) {
+    const zapMatch = clean.match(/(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?9?\d{4}[-\s]?\d{4}/);
+    if (zapMatch) whatsapp = zapMatch[0];
+  }
+  if (!nick) {
+    const firstNonHeader = lines.find(
+      (l) => !l.toLowerCase().includes("latam") && !l.toLowerCase().includes("candidatura") && !l.toLowerCase().includes("membro")
+    );
+    if (firstNonHeader) {
+      nick = firstNonHeader.slice(0, 24);
+    }
+  }
+
+  return {
+    nick: nick || "LATAM 友 RECRUTA",
+    idConta: idConta || "",
+    nome: nome || nick || "",
+    whatsapp: whatsapp || "",
+    cargo,
+    funcao,
+    patente,
+    nota,
+  };
+}
+
+// ─── Modal Colar Ficha de Membro ─────────────────────────────────────────────
+
+export interface PasteMemberModalProps {
+  onClose: () => void;
+  onAdd: (member: GuildMember) => void;
+  lines: GuildLine[];
+}
+
+export function PasteMemberModal({
+  onClose,
+  onAdd,
+  lines,
+}: PasteMemberModalProps) {
+  const [pastedText, setPastedText] = useState("");
+  const [selectedCargo, setSelectedCargo] = useState<GuildCargo>("titular");
+  const [selectedLineId, setSelectedLineId] = useState("");
+
+  const parsed = pastedText.trim() ? parseMemberFicha(pastedText) : null;
+
+  async function handlePasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text || !text.trim()) {
+        toast.error("Área de transferência vazia.");
+        return;
+      }
+      setPastedText(text);
+      const p = parseMemberFicha(text);
+      if (p.cargo) setSelectedCargo(p.cargo);
+      playClickSound();
+      toast.success("Ficha colada com sucesso!");
+    } catch {
+      toast.error("Permissão de área de transferência negada.");
+    }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!parsed) {
+      toast.error("Cole os dados do membro primeiro.");
+      return;
+    }
+    if (!parsed.nick || !parsed.idConta) {
+      toast.error("Nick e ID Free Fire são obrigatórios.");
+      return;
+    }
+
+    const member: GuildMember = {
+      id: `mem-${Date.now()}`,
+      nick: parsed.nick,
+      nome: parsed.nome || parsed.nick,
+      idConta: parsed.idConta,
+      whatsapp: parsed.whatsapp,
+      cargo: selectedCargo,
+      funcao: parsed.funcao,
+      patente: parsed.patente,
+      lineId: selectedLineId || undefined,
+      status: "ativo",
+      entrouEm: new Date().toLocaleDateString("pt-BR", {
+        month: "2-digit",
+        year: "numeric",
+      }),
+      nota: "Cadastrado via Colar Ficha",
+    };
+
+    playApproveSound();
+    onAdd(member);
+    toast.success(`${member.nick} oficializado na guilda LATAM 友!`);
+    onClose();
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-[#0e131b] p-6 shadow-2xl"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+      >
+        {/* Header */}
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-accent font-semibold">
+              Roster Oficial
+            </p>
+            <h3 className="font-display text-2xl text-silver flex items-center gap-2">
+              📋 Colar Ficha de Membro
+            </h3>
+            <p className="text-xs text-subtle mt-1">
+              Cole o texto enviado pelo jogador (WhatsApp, Discord ou Instagram). O sistema extrai Nick, ID, WhatsApp, Função e Patente na hora!
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-white/5 hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handlePasteFromClipboard}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20 cursor-pointer"
+            >
+              <ClipboardPaste size={14} />
+              Colar da Área de Transferência
+            </button>
+          </div>
+
+          <div className="relative">
+            <textarea
+              className="w-full rounded-xl border border-white/10 bg-[#121821] p-3 text-xs font-mono text-foreground placeholder:text-subtle focus:border-accent/50 focus:outline-none resize-none"
+              rows={7}
+              placeholder={`Cole aqui o texto ou ficha inteira do membro...\n\nExemplo:\nNick: LATAM 友 GHOST\nNome: Gabriel Ferreira\nWhatsApp: (21) 97722-3344\nID da conta: 273819402\nFunção: Suporte\nPatente: Elite`}
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {parsed && (
+            <div className="rounded-xl border border-accent/20 bg-accent/5 p-3.5 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-accent">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles size={13} />
+                  Dados Identificados
+                </span>
+                <span className="text-[11px] text-emerald-400">✓ Pronto para oficializar</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Nick</span>
+                  <span className="font-semibold text-silver truncate block">{parsed.nick}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">ID Free Fire</span>
+                  <span className="font-mono text-accent truncate block">{parsed.idConta || "—"}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">WhatsApp</span>
+                  <span className="text-silver truncate block">{parsed.whatsapp || "—"}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Função</span>
+                  <span className="text-silver capitalize truncate block">{parsed.funcao}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Patente</span>
+                  <span className="text-silver capitalize truncate block">{parsed.patente}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Nome</span>
+                  <span className="text-silver truncate block">{parsed.nome || "—"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Opções de Cargo e Line */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-xs text-subtle mb-1">Cargo no Roster</label>
+              <select
+                className="w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-xs text-foreground focus:border-accent/50 focus:outline-none"
+                value={selectedCargo}
+                onChange={(e) => setSelectedCargo(e.target.value as GuildCargo)}
+              >
+                <option value="titular">Titular</option>
+                <option value="capitao">Capitão</option>
+                <option value="vice_lider">Vice-Líder</option>
+                <option value="lider">Líder</option>
+                <option value="reserva">Reserva</option>
+                <option value="membro">Membro</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-subtle mb-1">Vincular a Line (Opcional)</label>
+              <select
+                className="w-full rounded-lg border border-white/10 bg-[#121821] px-3 py-2 text-xs text-foreground focus:border-accent/50 focus:outline-none"
+                value={selectedLineId}
+                onChange={(e) => setSelectedLineId(e.target.value)}
+              >
+                <option value="">Sem Line (Livre)</option>
+                {lines.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.nome} ({l.tag})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2 border-t border-white/6">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onClose}
+              className="border border-white/10 text-subtle"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={!parsed}
+              className="bg-accent text-accent-foreground font-semibold"
+            >
+              Oficializar Membro
             </Button>
           </div>
         </form>

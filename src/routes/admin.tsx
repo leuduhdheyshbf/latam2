@@ -64,7 +64,7 @@ import {
   isSupabaseConfigured,
   updateCandidateSupabase,
 } from "@/lib/supabase";
-import { MembrosView, MemberModal } from "@/components/admin-members";
+import { MembrosView, MemberModal, PasteMemberModal } from "@/components/admin-members";
 import { LinesView, AddLineModal } from "@/components/admin-lines";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import {
@@ -1124,6 +1124,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [muted, setMuted] = useState(isSoundMuted);
   const [waCandidate, setWaCandidate] = useState<StoredCandidate | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPasteMemberModal, setShowPasteMemberModal] = useState(false);
   const [candidateToDelete, setCandidateToDelete] = useState<StoredCandidate | null>(null);
   const [memberModal, setMemberModal] = useState<{
     isOpen: boolean;
@@ -1563,14 +1564,27 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             )}
 
             {activeSection === "membros" && (
-              <Button
-                className="gap-1.5 py-2 text-sm bg-accent text-accent-foreground font-semibold hover:bg-accent/90"
-                onClick={handleAddMember}
-              >
-                <UserPlus size={14} />
-                <span className="hidden sm:inline">Novo Membro</span>
-                <span className="sm:hidden">Membro</span>
-              </Button>
+              <>
+                <Button
+                  className="gap-1.5 py-2 text-sm bg-accent/15 text-accent hover:bg-accent/25 border border-accent/30"
+                  onClick={() => {
+                    playClickSound();
+                    setShowPasteMemberModal(true);
+                  }}
+                >
+                  <ClipboardPaste size={14} />
+                  <span className="hidden sm:inline">Colar Ficha</span>
+                  <span className="sm:hidden">Colar</span>
+                </Button>
+                <Button
+                  className="gap-1.5 py-2 text-sm bg-accent text-accent-foreground font-semibold hover:bg-accent/90"
+                  onClick={handleAddMember}
+                >
+                  <UserPlus size={14} />
+                  <span className="hidden sm:inline">Novo Membro</span>
+                  <span className="sm:hidden">Membro</span>
+                </Button>
+              </>
             )}
 
             {/* Logout */}
@@ -1819,6 +1833,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             members={members}
             lines={lines}
             onAddMember={handleAddMember}
+            onPasteMember={() => {
+              playClickSound();
+              setShowPasteMemberModal(true);
+            }}
             onEditMember={handleEditMember}
             onDeleteMember={handleDeleteMember}
           />
@@ -1840,6 +1858,14 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             key="add-modal"
             onClose={() => setShowAddModal(false)}
             onAdd={addCandidate}
+          />
+        )}
+        {showPasteMemberModal && (
+          <PasteMemberModal
+            key="paste-member-modal"
+            lines={lines}
+            onClose={() => setShowPasteMemberModal(false)}
+            onAdd={handleSaveMember}
           />
         )}
         {candidateToDelete && (
