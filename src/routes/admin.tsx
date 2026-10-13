@@ -47,6 +47,14 @@ import {
   playSuccessSound,
   toggleSound,
 } from "@/lib/sound";
+import {
+  deleteCandidateSupabase,
+  fetchCandidatesSupabase,
+  getSupabase,
+  insertCandidateSupabase,
+  isSupabaseConfigured,
+  updateCandidateSupabase,
+} from "@/lib/supabase";
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
 
@@ -1064,13 +1072,59 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [waCandidate, setWaCandidate] = useState<StoredCandidate | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Persist on change
+  // Carregar do Supabase e assinar atualizações Realtime se configurado
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let isMounted = true;
+    fetchCandidatesSupabase()
+      .then((data) => {
+        if (isMounted && data.length > 0) {
+          setCandidates(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Admin] Falha ao carregar do Supabase:", err);
+      });
+
+    const client = getSupabase();
+    if (!client) return;
+
+    const channel = client
+      .channel("admin-candidatos-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "candidatos" },
+        () => {
+          fetchCandidatesSupabase().then((data) => {
+            if (isMounted) {
+              setCandidates(data);
+              playApproveSound();
+              toast.info("Nova inscrição recebida no banco!");
+            }
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      client.removeChannel(channel);
+    };
+  }, []);
+
+  // Persist on change (backup local)
   useEffect(() => saveCandidates(candidates), [candidates]);
 
   function updateStatus(id: string, status: StoredCandidate["status"]) {
     setCandidates((prev) =>
       prev.map((c) => (c.id === id ? { ...c, status } : c)),
     );
+    if (isSupabaseConfigured) {
+      updateCandidateSupabase(id, { status }).catch((e) =>
+        console.error("Erro ao atualizar Supabase:", e),
+      );
+    }
     if (status === "aprovado") {
       toast.success("Candidato aprovado p/ teste.");
       playApproveSound();
@@ -1084,6 +1138,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   function deleteCandidate(id: string) {
     setCandidates((prev) => prev.filter((c) => c.id !== id));
+    if (isSupabaseConfigured) {
+      deleteCandidateSupabase(id).catch((e) =>
+        console.error("Erro ao deletar Supabase:", e),
+      );
+    }
     toast.success("Candidato removido.");
   }
 
@@ -1091,10 +1150,20 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     setCandidates((prev) =>
       prev.map((c) => (c.id === id ? { ...c, staffNote: note } : c)),
     );
+    if (isSupabaseConfigured) {
+      updateCandidateSupabase(id, { staff_note: note }).catch((e) =>
+        console.error("Erro ao salvar nota Supabase:", e),
+      );
+    }
   }
 
   function addCandidate(c: StoredCandidate) {
     setCandidates((prev) => [c, ...prev]);
+    if (isSupabaseConfigured) {
+      insertCandidateSupabase(c).catch((e) =>
+        console.error("Erro ao salvar Supabase:", e),
+      );
+    }
   }
 
   function approveViaWa(id: string) {
@@ -1184,10 +1253,21 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </span>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 flex items-center gap-2.5">
             <h2 className="font-display text-lg text-silver leading-none">
               Candidaturas
             </h2>
+            {isSupabaseConfigured ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+                Supabase Online
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400" title="Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env">
+                <span className="size-1.5 rounded-full bg-amber-400" />
+                Modo Local (Sem Nuvem)
+              </span>
+            )}
           </div>
 
           {/* Right actions */}

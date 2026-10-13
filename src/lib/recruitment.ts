@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { insertCandidateSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const GUILD_NAME = "LATAM";
 export const GUILD_MARK = "友";
@@ -261,10 +262,6 @@ export function displayValue(key: keyof RecruitmentValues, values: RecruitmentVa
 const RECRUITMENT_API_URL = import.meta.env.VITE_RECRUITMENT_API_URL;
 
 export async function submitRecruitment(values: RecruitmentValues): Promise<void> {
-  if (!RECRUITMENT_API_URL) {
-    throw new Error("A API de recrutamento não está configurada.");
-  }
-
   const payload = {
     nome: values.nome,
     idade: values.idade,
@@ -281,51 +278,63 @@ export async function submitRecruitment(values: RecruitmentValues): Promise<void
     website: "",
   };
 
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 20000);
-  try {
-    const response = await fetch(RECRUITMENT_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-
-    const result = (await response.json().catch(() => null)) as
-      | { success?: boolean; error?: string }
-      | null;
-
-    if (!response.ok || !result?.success) {
-      throw new Error(result?.error || "O servidor recusou os dados. Confira o formulário.");
+  // 1. Se o Supabase estiver configurado, envia diretamente para o banco
+  if (isSupabaseConfigured) {
+    try {
+      await insertCandidateSupabase(values);
+    } catch (err) {
+      console.error("[Recruitment] Falha ao enviar para Supabase:", err);
+      throw new Error(err instanceof Error ? err.message : "Erro ao salvar no banco Supabase.");
     }
+  } else if (RECRUITMENT_API_URL) {
+    // 2. Se houver uma API webhook alternativa configurada
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await fetch(RECRUITMENT_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
 
-    // Salva cópia local para visualização instantânea no Painel do Administrador (Sou ADM)
-    if (typeof window !== "undefined") {
-      try {
-        const existing = JSON.parse(localStorage.getItem("latam-admin-candidates") || "[]");
-        const newRecord = {
-          ...payload,
-          id: `cand-${Date.now()}`,
-          submittedAt: new Date().toLocaleDateString("pt-BR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          status: "pendente",
-        };
-        localStorage.setItem("latam-admin-candidates", JSON.stringify([newRecord, ...existing]));
-      } catch {
-        /* ignore */
+      const result = (await response.json().catch(() => null)) as
+        | { success?: boolean; error?: string }
+        | null;
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "O servidor recusou os dados. Confira o formulário.");
       }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error("Tempo esgotado. Confira a conexão e tente de novo.");
+      }
+      throw new Error("Erro ao enviar. Tente novamente em instantes.");
+    } finally {
+      window.clearTimeout(timer);
     }
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("Tempo esgotado. Confira a conexão e tente de novo.");
+  }
+
+  // 3. Salva cópia local para visualização instantânea no Painel do Administrador (Sou ADM)
+  if (typeof window !== "undefined") {
+    try {
+      const existing = JSON.parse(localStorage.getItem("latam-admin-candidates") || "[]");
+      const newRecord = {
+        ...payload,
+        id: `cand-${Date.now()}`,
+        submittedAt: new Date().toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        status: "pendente",
+      };
+      localStorage.setItem("latam-admin-candidates", JSON.stringify([newRecord, ...existing]));
+    } catch {
+      /* ignore */
     }
-    throw new Error("Erro ao enviar. Tente novamente em instantes.");
-  } finally {
-    window.clearTimeout(timer);
   }
 }
+
