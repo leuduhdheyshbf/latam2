@@ -2,9 +2,12 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   AlertTriangle,
+  Check,
   ClipboardPaste,
   Copy,
   Crown,
+  ExternalLink,
+  Link2,
   MessageCircle,
   Pencil,
   Search,
@@ -62,6 +65,7 @@ export function MembrosView({
   const [cargoFilter, setCargoFilter] = useState<MembroFilter>("todos");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<GuildMember | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   const total = members.length;
   const titulares = members.filter(
@@ -233,6 +237,18 @@ export function MembrosView({
             ))}
           </div>
 
+          <button
+            onClick={() => {
+              playClickSound();
+              setShowLinkModal(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-[#121821] hover:bg-cyan-500/15 px-3.5 py-2 text-xs font-semibold text-cyan-400 transition-all shadow-sm hover:border-cyan-400 cursor-pointer"
+          >
+            <Link2 size={14} />
+            <span className="hidden sm:inline">Criar Link</span>
+            <span className="sm:hidden">Link</span>
+          </button>
+
           {onPasteMember && (
             <button
               onClick={() => {
@@ -267,6 +283,18 @@ export function MembrosView({
           <Users size={32} className="mx-auto mb-3 text-subtle/40" />
           <p className="text-subtle mb-4">Nenhum membro encontrado com esse filtro.</p>
           <div className="flex items-center justify-center gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                playClickSound();
+                setShowLinkModal(true);
+              }}
+              className="gap-1.5 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 text-xs"
+            >
+              <Link2 size={14} />
+              Criar Link de Cadastro
+            </Button>
+
             {onPasteMember && (
               <Button
                 variant="ghost"
@@ -445,7 +473,7 @@ export function MembrosView({
         </div>
       )}
 
-      {/* Modal de confirmação de exclusão */}
+      {/* Modais de Membros */}
       <AnimatePresence>
         {memberToDelete && (
           <ConfirmDeleteModal
@@ -460,6 +488,13 @@ export function MembrosView({
               onDeleteMember(memberToDelete.id);
               setMemberToDelete(null);
             }}
+          />
+        )}
+
+        {showLinkModal && (
+          <LinkMemberModal
+            onClose={() => setShowLinkModal(false)}
+            lines={lines}
           />
         )}
       </AnimatePresence>
@@ -1124,6 +1159,213 @@ export function PasteMemberModal({
             </Button>
           </div>
         </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Modal de Criação / Compartilhamento de Link de Membro ───────────────────
+
+export function LinkMemberModal({
+  onClose,
+  lines,
+}: {
+  onClose: () => void;
+  lines: GuildLine[];
+}) {
+  const [selectedCargo, setSelectedCargo] = useState<GuildCargo>("membro");
+  const [selectedLineId, setSelectedLineId] = useState<string>("");
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedMsg, setCopiedMsg] = useState(false);
+
+  const origin =
+    typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : "https://latam2.nyxaria.workers.dev";
+  const baseUrl = `${origin}/cadastro-membro`;
+
+  const params = new URLSearchParams();
+  if (selectedCargo && selectedCargo !== "membro") {
+    params.set("cargo", selectedCargo);
+  }
+  if (selectedLineId) {
+    params.set("line", selectedLineId);
+  }
+  const queryString = params.toString();
+  const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+
+  const selectedLine = lines.find((l) => l.id === selectedLineId);
+
+  const inviteMessage = [
+    `🏆 *${GUILD_NAME}${GUILD_MARK} — Cadastro Oficial de Membro*`,
+    "",
+    "Olá guerreiro! Registre sua ficha para entrar no Roster Oficial da guilda LATAM:",
+    selectedLine ? `⚔️ Line: *${selectedLine.nome} (${selectedLine.tag})*` : "",
+    `🔗 *Acesse o link:* ${fullUrl}`,
+    "",
+    "_Foco total na partida sem ter medo de perder!_",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  function handleCopyLink() {
+    playClickSound();
+    void navigator.clipboard.writeText(fullUrl);
+    setCopiedLink(true);
+    toast.success("Link de cadastro copiado!");
+    setTimeout(() => setCopiedLink(false), 2000);
+  }
+
+  function handleCopyInvite() {
+    playApproveSound();
+    void navigator.clipboard.writeText(inviteMessage);
+    setCopiedMsg(true);
+    toast.success("Convite formatado para WhatsApp copiado!");
+    setTimeout(() => setCopiedMsg(false), 2000);
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-[#0e131b] p-6 shadow-2xl"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+      >
+        <div className="mb-4 flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="size-10 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+              <Link2 size={20} />
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-widest text-cyan-400 font-semibold">
+                Link de Entrada
+              </p>
+              <h3 className="font-display text-2xl text-silver">
+                Cadastro de Membros
+              </h3>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-subtle transition-colors hover:bg-white/5 hover:text-foreground cursor-pointer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <p className="text-xs text-subtle mb-4 leading-relaxed">
+          Os membros que acessarem este link preenchem a própria ficha e entram automaticamente na <strong>Tabela de Membros</strong> da guilda (no Supabase e no painel).
+        </p>
+
+        {/* Customização opcional de Cargo e Line */}
+        <div className="grid grid-cols-2 gap-3 mb-4 p-3 rounded-xl bg-black/30 border border-white/6">
+          <div>
+            <label className="block text-[11px] uppercase tracking-wider text-subtle mb-1">
+              Cargo Atribuído
+            </label>
+            <select
+              className="w-full rounded-lg border border-white/10 bg-[#121821] px-2.5 py-1.5 text-xs text-foreground focus:border-cyan-400 focus:outline-none"
+              value={selectedCargo}
+              onChange={(e) => setSelectedCargo(e.target.value as GuildCargo)}
+            >
+              <option value="membro">Membro (Padrão)</option>
+              <option value="titular">Titular</option>
+              <option value="reserva">Reserva</option>
+              <option value="capitao">Capitão</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] uppercase tracking-wider text-subtle mb-1">
+              Line-up (Opcional)
+            </label>
+            <select
+              className="w-full rounded-lg border border-white/10 bg-[#121821] px-2.5 py-1.5 text-xs text-foreground focus:border-cyan-400 focus:outline-none"
+              value={selectedLineId}
+              onChange={(e) => setSelectedLineId(e.target.value)}
+            >
+              <option value="">Nenhuma / Livre</option>
+              {lines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.nome} ({l.tag})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Campo com a URL */}
+        <div className="mb-4">
+          <label className="block text-[11px] uppercase tracking-wider text-subtle mb-1">
+            URL Pública Gerada
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={fullUrl}
+              className="flex-1 rounded-xl border border-white/10 bg-[#121821] px-3.5 py-2 font-mono text-xs text-cyan-300 focus:outline-none select-all"
+            />
+            <Button
+              onClick={handleCopyLink}
+              className="gap-1.5 py-2 text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-neutral-950 rounded-xl cursor-pointer shadow-[0_0_12px_rgba(0,180,255,0.25)]"
+            >
+              {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+              <span>{copiedLink ? "Copiado!" : "Copiar"}</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Card do WhatsApp */}
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3.5 mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <MessageCircle size={14} />
+              Convite Formatado para WhatsApp
+            </span>
+            <button
+              onClick={handleCopyInvite}
+              className="text-[11px] font-semibold text-emerald-300 hover:text-emerald-200 cursor-pointer underline underline-offset-2 flex items-center gap-1"
+            >
+              {copiedMsg ? <Check size={12} /> : <Copy size={12} />}
+              <span>{copiedMsg ? "Copiado!" : "Copiar Mensagem"}</span>
+            </button>
+          </div>
+          <pre className="text-[11px] text-subtle whitespace-pre-wrap font-sans bg-black/40 p-2.5 rounded-lg border border-white/5 leading-relaxed">
+            {inviteMessage}
+          </pre>
+        </div>
+
+        {/* Rodapé / Ações */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/6">
+          <a
+            href={fullUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-subtle hover:text-cyan-400 transition-colors"
+          >
+            <ExternalLink size={13} />
+            <span>Abrir página em nova aba</span>
+          </a>
+
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            className="border border-white/10 text-subtle text-xs"
+          >
+            Fechar
+          </Button>
+        </div>
       </motion.div>
     </motion.div>
   );

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CadastroMembroRouteImport } from './routes/cadastro-membro'
 import { Route as CandidaturaRouteImport } from './routes/candidatura'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CadastroMembroRoute = CadastroMembroRouteImport.update({
+  id: '/cadastro-membro',
+  path: '/cadastro-membro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CandidaturaRoute = CandidaturaRouteImport.update({
   id: '/candidatura',
   path: '/candidatura',
@@ -32,30 +38,34 @@ const CandidaturaRoute = CandidaturaRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cadastro-membro': typeof CadastroMembroRoute
   '/candidatura': typeof CandidaturaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cadastro-membro': typeof CadastroMembroRoute
   '/candidatura': typeof CandidaturaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cadastro-membro': typeof CadastroMembroRoute
   '/candidatura': typeof CandidaturaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/candidatura'
+  fullPaths: '/' | '/admin' | '/cadastro-membro' | '/candidatura'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/candidatura'
-  id: '__root__' | '/' | '/admin' | '/candidatura'
+  to: '/' | '/admin' | '/cadastro-membro' | '/candidatura'
+  id: '__root__' | '/' | '/admin' | '/cadastro-membro' | '/candidatura'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CadastroMembroRoute: typeof CadastroMembroRoute
   CandidaturaRoute: typeof CandidaturaRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cadastro-membro': {
+      id: '/cadastro-membro'
+      path: '/cadastro-membro'
+      fullPath: '/cadastro-membro'
+      preLoaderRoute: typeof CadastroMembroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/candidatura': {
       id: '/candidatura'
       path: '/candidatura'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CadastroMembroRoute: CadastroMembroRoute,
   CandidaturaRoute: CandidaturaRoute,
 }
 export const routeTree = rootRouteImport
