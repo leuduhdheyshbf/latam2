@@ -12,6 +12,7 @@ export type GuildMember = {
   id: string;
   nick: string;
   nome: string;
+  idade?: string;
   idConta: string;
   whatsapp: string;
   cargo: GuildCargo;

@@ -197,10 +197,19 @@ export interface DbMember {
 }
 
 export function dbToMember(db: DbMember): GuildMember {
+  let idade: string | undefined = undefined;
+  if (db.nota) {
+    const match = db.nota.match(/Idade:\s*(\d{1,2})/i);
+    if (match) {
+      idade = match[1];
+    }
+  }
+
   return {
     id: db.id,
     nick: db.nick,
     nome: db.nome || "",
+    idade,
     idConta: db.id_conta,
     whatsapp: db.whatsapp || "",
     cargo: (db.cargo || "titular") as GuildCargo,
@@ -214,6 +223,16 @@ export function dbToMember(db: DbMember): GuildMember {
 }
 
 export function memberToDb(m: GuildMember): DbMember {
+  let finalNota = m.nota || null;
+  if (m.idade) {
+    const idadeText = `Idade: ${m.idade}`;
+    if (!finalNota) {
+      finalNota = idadeText;
+    } else if (!finalNota.includes("Idade:")) {
+      finalNota = `${idadeText} • ${finalNota}`;
+    }
+  }
+
   return {
     id: m.id,
     nick: m.nick,
@@ -226,7 +245,7 @@ export function memberToDb(m: GuildMember): DbMember {
     line_id: m.lineId || null,
     status: m.status,
     entrou_em: m.entrouEm || null,
-    nota: m.nota || null,
+    nota: finalNota,
   };
 }
 

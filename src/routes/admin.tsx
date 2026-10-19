@@ -1775,7 +1775,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
           {/* Right actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Botão Global de Gerar Link de Membro */}
+            {/* Botão Global de Gerar Link pra Membro */}
             <button
               onClick={() => {
                 playClickSound();
@@ -1785,8 +1785,8 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               title="Gerar link para membros preencherem seus dados"
             >
               <Link2 size={14} className="text-cyan-400" />
-              <span className="hidden md:inline">Gerar Link de Membro</span>
-              <span className="md:hidden">Link Membros</span>
+              <span className="hidden md:inline">Gerar Link pra Membro</span>
+              <span className="md:hidden">Gerar Link</span>
             </button>
 
             {/* Sound toggle */}
@@ -1846,7 +1846,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                   className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-[#121821] hover:bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-400 transition-all cursor-pointer shadow-sm"
                 >
                   <Link2 size={13} />
-                  <span>Link p/ Membros</span>
+                  <span>Gerar Link pra Membro</span>
                 </button>
 
                 {isSupabaseConfigured ? (

@@ -119,20 +119,14 @@ export function MembrosView({
 
   function copyMemberFicha(m: GuildMember) {
     playClickSound();
-    const line = lines.find((l) => l.id === m.lineId);
     const text = [
-      `*${GUILD_NAME}${GUILD_MARK} — Membro Oficial*`,
-      "",
       `*Nick:* ${m.nick}`,
-      m.nome ? `*Nome:* ${m.nome}` : "",
+      `*Nome:* ${m.nome}`,
+      `idade: ${m.idade || "—"}`,
       `*ID da Conta:* ${m.idConta}`,
-      m.whatsapp ? `*WhatsApp:* ${m.whatsapp}` : "",
-      `*Cargo:* ${CARGO_CONFIG[m.cargo]?.label || m.cargo}`,
-      `*Função:* ${m.funcao}`,
-      `*Patente:* ${m.patente}`,
-      line ? `*Line:* ${line.nome} (${line.tag})` : "",
-      m.entrouEm ? `*Entrou em:* ${m.entrouEm}` : "",
-      m.nota ? `*Nota:* ${m.nota}` : "",
+      `*WhatsApp:* ${m.whatsapp}`,
+      `*Função:* ${FUNCOES.find((f) => f.value === m.funcao)?.label || m.funcao}`,
+      `*Patente:* ${PATENTES_LATAM.find((p) => p.value === m.patente)?.label || m.patente}`,
     ]
       .filter(Boolean)
       .join("\n");
@@ -245,8 +239,8 @@ export function MembrosView({
             className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-[#121821] hover:bg-cyan-500/15 px-3.5 py-2 text-xs font-semibold text-cyan-400 transition-all shadow-sm hover:border-cyan-400 cursor-pointer"
           >
             <Link2 size={14} />
-            <span className="hidden sm:inline">Criar Link</span>
-            <span className="sm:hidden">Link</span>
+            <span className="hidden sm:inline">Gerar Link pra Membro</span>
+            <span className="sm:hidden">Gerar Link</span>
           </button>
 
           {onPasteMember && (
@@ -292,7 +286,7 @@ export function MembrosView({
               className="gap-1.5 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 text-xs"
             >
               <Link2 size={14} />
-              Criar Link de Cadastro
+              Gerar Link pra Membro
             </Button>
 
             {onPasteMember && (
@@ -1197,11 +1191,20 @@ export function LinkMemberModal({
   const selectedLine = lines.find((l) => l.id === selectedLineId);
 
   const inviteMessage = [
-    `🏆 *${GUILD_NAME}${GUILD_MARK} — Cadastro Oficial de Membro*`,
+    `🏆 *${GUILD_NAME}${GUILD_MARK} — Formulário de Membro Oficial*`,
     "",
-    "Olá guerreiro! Registre sua ficha para entrar no Roster Oficial da guilda LATAM:",
+    "Olá guerreiro! Registre sua ficha oficial para entrar no Roster:",
     selectedLine ? `⚔️ Line: *${selectedLine.nome} (${selectedLine.tag})*` : "",
     `🔗 *Acesse o link:* ${fullUrl}`,
+    "",
+    "Campos da ficha:",
+    "*Nick:*",
+    "*Nome:*",
+    "idade",
+    "*ID da Conta:*",
+    "*WhatsApp:*",
+    "*Função:*",
+    "*Patente:*",
     "",
     "_Foco total na partida sem ter medo de perder!_",
   ]
@@ -1248,10 +1251,10 @@ export function LinkMemberModal({
             </div>
             <div>
               <p className="text-xs uppercase tracking-widest text-cyan-400 font-semibold">
-                Link de Entrada
+                Roster Oficial
               </p>
               <h3 className="font-display text-2xl text-silver">
-                Cadastro de Membros
+                Gerar Link pra Membro
               </h3>
             </div>
           </div>

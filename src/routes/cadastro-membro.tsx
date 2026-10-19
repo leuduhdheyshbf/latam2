@@ -60,9 +60,10 @@ function CadastroMembroPage() {
   const [submittedMember, setSubmittedMember] = useState<GuildMember | null>(null);
   const [copiedFicha, setCopiedFicha] = useState(false);
 
-  // Form states
+  // Form states exatamente como solicitado pelo operador
   const [nick, setNick] = useState("");
   const [nome, setNome] = useState("");
+  const [idade, setIdade] = useState("");
   const [idConta, setIdConta] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [funcao, setFuncao] = useState("rush");
@@ -71,10 +72,10 @@ function CadastroMembroPage() {
   const [lineId, setLineId] = useState("");
   const [nota, setNota] = useState("");
 
-  // Errors
+  // Erros
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Parse URL query parameters if passed (?cargo=...&line=...)
+  // Parse URL query parameters (?cargo=...&line=...)
   useEffect(() => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
@@ -89,7 +90,7 @@ function CadastroMembroPage() {
     }
   }, []);
 
-  // Load lines from Supabase or LocalStorage
+  // Carregar Lines
   useEffect(() => {
     let isMounted = true;
     const local = loadLines();
@@ -116,6 +117,18 @@ function CadastroMembroPage() {
       setErrors((prev) => {
         const next = { ...prev };
         delete next.nick;
+        return next;
+      });
+    }
+  }
+
+  function handleIdadeChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+    setIdade(raw);
+    if (errors.idade) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.idade;
         return next;
       });
     }
@@ -150,14 +163,22 @@ function CadastroMembroPage() {
     const newErrors: Record<string, string> = {};
 
     const cleanNick = nick.trim();
+    const cleanNome = nome.trim();
+    const cleanIdade = idade.trim();
     const cleanId = idConta.replace(/\D/g, "");
     const cleanPhone = whatsapp.replace(/\D/g, "");
 
     if (!cleanNick || cleanNick.length < 2) {
-      newErrors.nick = "Informe seu Nick no Free Fire (mínimo 2 caracteres).";
+      newErrors.nick = "Informe seu Nick no Free Fire.";
+    }
+    if (!cleanNome) {
+      newErrors.nome = "Informe seu Nome.";
+    }
+    if (!cleanIdade || parseInt(cleanIdade, 10) < 10) {
+      newErrors.idade = "Informe uma idade válida.";
     }
     if (!cleanId || cleanId.length < 7) {
-      newErrors.idConta = "Informe um ID Free Fire válido (7 a 12 números).";
+      newErrors.idConta = "Informe um ID da Conta válido (7 a 12 números).";
     }
     if (!cleanPhone || cleanPhone.length < 10) {
       newErrors.whatsapp = "Informe um WhatsApp válido com DDD.";
@@ -166,7 +187,7 @@ function CadastroMembroPage() {
     if (Object.keys(newErrors).length > 0) {
       playDenySound();
       setErrors(newErrors);
-      toast.error("Por favor, preencha os campos obrigatórios corretamente.");
+      toast.error("Preencha todos os campos da ficha corretamente.");
       return;
     }
 
@@ -184,7 +205,8 @@ function CadastroMembroPage() {
       const member: GuildMember = {
         id: `mem-${Date.now()}`,
         nick: cleanNick,
-        nome: nome.trim() || cleanNick,
+        nome: cleanNome,
+        idade: cleanIdade,
         idConta: cleanId,
         whatsapp: whatsapp.trim(),
         cargo: cargo || "membro",
@@ -193,15 +215,15 @@ function CadastroMembroPage() {
         lineId: lineId || undefined,
         status: "ativo",
         entrouEm: enteredFormatted,
-        nota: nota.trim() || "Cadastrado via link oficial de membros",
+        nota: nota.trim() || undefined,
       };
 
-      // 1. Salvar no Supabase se configurado
+      // 1. Salvar no Supabase
       if (isSupabaseConfigured) {
         await upsertMemberSupabase(member);
       }
 
-      // 2. Salvar no localStorage local para redundância e sincronização imediata
+      // 2. Salvar no cache local para sincronização imediata
       const currentList = loadMembers();
       const filtered = currentList.filter(
         (m) => m.id !== member.id && m.idConta !== member.idConta
@@ -210,7 +232,7 @@ function CadastroMembroPage() {
 
       playSuccessSound();
       setSubmittedMember(member);
-      toast.success(`Bem-vindo à ${GUILD_NAME} ${GUILD_MARK}! Ficha cadastrada com sucesso.`);
+      toast.success(`Ficha de ${cleanNick} registrada no Roster Oficial!`);
     } catch (err) {
       console.error("[Cadastro Membro] Erro ao cadastrar:", err);
       toast.error("Erro ao salvar cadastro. Tente novamente.");
@@ -221,27 +243,19 @@ function CadastroMembroPage() {
 
   function handleCopyFicha(m: GuildMember) {
     playClickSound();
-    const line = lines.find((l) => l.id === m.lineId);
     const text = [
-      `*${GUILD_NAME}${GUILD_MARK} — Membro Oficial Registrado*`,
-      "",
       `*Nick:* ${m.nick}`,
-      m.nome ? `*Nome:* ${m.nome}` : "",
-      `*ID Free Fire:* ${m.idConta}`,
+      `*Nome:* ${m.nome}`,
+      `idade: ${m.idade || "—"}`,
+      `*ID da Conta:* ${m.idConta}`,
       `*WhatsApp:* ${m.whatsapp}`,
-      `*Cargo:* ${CARGO_CONFIG[m.cargo]?.label || m.cargo}`,
-      `*Função:* ${m.funcao}`,
-      `*Patente:* ${m.patente}`,
-      line ? `*Line:* ${line.nome} (${line.tag})` : "",
-      m.entrouEm ? `*Entrou em:* ${m.entrouEm}` : "",
-      m.nota ? `*Nota:* ${m.nota}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+      `*Função:* ${FUNCOES.find((f) => f.value === m.funcao)?.label || m.funcao}`,
+      `*Patente:* ${PATENTES_LATAM.find((p) => p.value === m.patente)?.label || m.patente}`,
+    ].join("\n");
 
     void navigator.clipboard.writeText(text);
     setCopiedFicha(true);
-    toast.success("Ficha oficial copiada para a área de transferência!");
+    toast.success("Ficha formatada copiada!");
     setTimeout(() => setCopiedFicha(false), 2000);
   }
 
@@ -250,6 +264,7 @@ function CadastroMembroPage() {
     setSubmittedMember(null);
     setNick("");
     setNome("");
+    setIdade("");
     setIdConta("");
     setWhatsapp("");
     setFuncao("rush");
@@ -269,7 +284,7 @@ function CadastroMembroPage() {
       <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
         <AnimatePresence mode="wait">
           {submittedMember ? (
-            /* ── TELA DE SUCESSO / CARTÃO OFICIAL DO MEMBRO ── */
+            /* ── TELA DE CONFIRMAÇÃO DO MEMBRO ── */
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -278,7 +293,6 @@ function CadastroMembroPage() {
               transition={{ duration: 0.35, ease: "easeOut" }}
               className="space-y-6"
             >
-              {/* Card de Boas-vindas */}
               <div className="rounded-2xl border border-white/10 bg-[#0e131b] p-6 text-center relative overflow-hidden shadow-2xl">
                 <div
                   className="absolute -top-20 left-1/2 -translate-x-1/2 size-48 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"
@@ -295,21 +309,20 @@ function CadastroMembroPage() {
                 </span>
 
                 <h1 className="font-display text-3xl sm:text-4xl text-silver tracking-wide">
-                  Bem-vindo à {GUILD_NAME} <span className="text-accent">{GUILD_MARK}</span>
+                  {submittedMember.nick} Oficializado!
                 </h1>
                 <p className="mt-2 text-sm text-subtle max-w-md mx-auto">
-                  Sua ficha oficial foi registrada na tabela de membros da guilda. O roster está atualizado.
+                  Sua ficha foi salva e enviada diretamente para a <strong>Tabela de Membros</strong> da {GUILD_NAME} {GUILD_MARK}.
                 </p>
               </div>
 
-              {/* Cartão Holográfico Tático do Jogador */}
+              {/* Cartão Holográfico Tático */}
               <TiltCard
                 maxTilt={12}
                 glareOpacity={0.25}
                 className="rounded-2xl p-[1.5px] holographic-foil shadow-[0_20px_45px_rgba(0,0,0,0.65)] select-none"
               >
                 <div className="rounded-[15px] bg-gradient-to-b from-[#131c2a] via-[#0c121b] to-[#070a0f] p-6 relative overflow-hidden backdrop-blur-md">
-                  {/* Cabeçalho do Cartão */}
                   <div className="flex items-center justify-between pb-4 border-b border-white/8">
                     <div className="flex items-center gap-3">
                       <img
@@ -348,45 +361,44 @@ function CadastroMembroPage() {
                     </div>
                   </div>
 
-                  {/* Informações Principais */}
-                  <div className="py-5 space-y-3">
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wider text-subtle font-semibold">
-                        Nick Oficial
-                      </p>
-                      <p className="font-display text-3xl text-white tracking-wide drop-shadow-md">
-                        {submittedMember.nick}
-                      </p>
-                      {submittedMember.nome && (
-                        <p className="text-xs text-subtle mt-0.5">
-                          Operador: <span className="text-foreground">{submittedMember.nome}</span>
-                        </p>
-                      )}
+                  {/* Informações da Ficha no Formato Especificado */}
+                  <div className="py-4 space-y-2 text-xs font-mono">
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="text-subtle font-sans font-semibold">*Nick:*</span>
+                      <span className="font-bold text-white text-sm">{submittedMember.nick}</span>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                      <div className="rounded-xl border border-white/6 bg-white/[0.03] p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-subtle">
-                          Função Tática
-                        </p>
-                        <p className="text-sm font-semibold text-silver mt-0.5 capitalize">
-                          {FUNCOES.find((f) => f.value === submittedMember.funcao)?.label ||
-                            submittedMember.funcao}
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-white/6 bg-white/[0.03] p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-subtle">
-                          Patente
-                        </p>
-                        <p className="text-sm font-semibold text-silver mt-0.5">
-                          {PATENTES_LATAM.find((p) => p.value === submittedMember.patente)?.label ||
-                            submittedMember.patente}
-                        </p>
-                      </div>
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="text-subtle font-sans font-semibold">*Nome:*</span>
+                      <span className="text-silver">{submittedMember.nome}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="text-subtle font-sans font-semibold">idade:</span>
+                      <span className="text-silver">{submittedMember.idade || "—"} anos</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="text-subtle font-sans font-semibold">*ID da Conta:*</span>
+                      <span className="text-cyan-400">{submittedMember.idConta}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="text-subtle font-sans font-semibold">*WhatsApp:*</span>
+                      <span className="text-emerald-400">{submittedMember.whatsapp}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-b border-white/5">
+                      <span className="text-subtle font-sans font-semibold">*Função:*</span>
+                      <span className="text-silver capitalize">
+                        {FUNCOES.find((f) => f.value === submittedMember.funcao)?.label ||
+                          submittedMember.funcao}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-subtle font-sans font-semibold">*Patente:*</span>
+                      <span className="text-amber-400">
+                        {PATENTES_LATAM.find((p) => p.value === submittedMember.patente)?.label ||
+                          submittedMember.patente}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Rodapé do Cartão */}
                   <div className="pt-3 border-t border-white/8 flex items-center justify-between text-xs text-subtle">
                     <span>Oficializado em: {submittedMember.entrouEm}</span>
                     <span className="text-[11px] text-cyan-400/80 font-mono tracking-wider">
@@ -396,14 +408,14 @@ function CadastroMembroPage() {
                 </div>
               </TiltCard>
 
-              {/* Botões de Ação Pós-Cadastro */}
+              {/* Ações */}
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <Button
                   onClick={() => handleCopyFicha(submittedMember)}
                   className="w-full sm:flex-1 gap-2 py-3 text-sm font-semibold bg-cyan-500 hover:bg-cyan-400 text-neutral-950 rounded-xl cursor-pointer shadow-[0_0_20px_rgba(0,180,255,0.3)] transition-all"
                 >
                   {copiedFicha ? <Check size={16} /> : <Copy size={16} />}
-                  <span>{copiedFicha ? "Ficha Copiada!" : "Copiar Ficha de Membro"}</span>
+                  <span>{copiedFicha ? "Ficha Copiada!" : "Copiar Ficha Formatada"}</span>
                 </Button>
 
                 <Button
@@ -421,12 +433,12 @@ function CadastroMembroPage() {
                   to="/"
                   className="text-xs text-subtle hover:text-cyan-400 underline underline-offset-4 transition-colors"
                 >
-                  Voltar para a página inicial da guilda
+                  Voltar para o início
                 </Link>
               </div>
             </motion.div>
           ) : (
-            /* ── FORMULÁRIO DE CADASTRO DE MEMBRO ── */
+            /* ── FORMULÁRIO DE MEMBRO OFICIAL (LAYOUT SOLICITADO) ── */
             <motion.div
               key="form"
               initial={{ opacity: 0, y: 15 }}
@@ -435,34 +447,31 @@ function CadastroMembroPage() {
               transition={{ duration: 0.3 }}
               className="space-y-6"
             >
-              {/* Header do Formulário */}
               <div className="rounded-2xl border border-white/10 bg-[#0e131b] p-6 relative overflow-hidden shadow-2xl">
                 <div
-                  className="absolute -top-16 -right-16 size-40 bg-accent/15 rounded-full blur-3xl pointer-events-none"
+                  className="absolute -top-16 -right-16 size-40 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none"
                   aria-hidden="true"
                 />
 
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="size-10 rounded-xl bg-accent/15 border border-accent/40 flex items-center justify-center text-accent">
+                  <div className="size-10 rounded-xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
                     <UserCheck size={22} />
                   </div>
                   <div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-accent">
-                      Roster Oficial · Rápido & Direto
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-cyan-400">
+                      Roster Oficial da Guilda
                     </span>
                     <h1 className="font-display text-2xl sm:text-3xl text-silver">
-                      Cadastro de Membro Oficial
+                      Ficha de Membro Oficial
                     </h1>
                   </div>
                 </div>
 
                 <p className="text-sm text-subtle leading-relaxed">
-                  Preencha seus dados para entrar na tabela de membros da{" "}
-                  <strong className="text-silver">{GUILD_NAME} {GUILD_MARK}</strong>. Seus dados serão
-                  registrados diretamente no roster do painel da guilda.
+                  Preencha a sua ficha abaixo. Seus dados irão diretamente para a <strong>Tabela de Membros</strong> da{" "}
+                  <strong className="text-silver">{GUILD_NAME} {GUILD_MARK}</strong>.
                 </p>
 
-                {/* Badge se houver line ou cargo pré-selecionado */}
                 {(cargo !== "membro" || selectedLine) && (
                   <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-white/8">
                     {cargo !== "membro" && (
@@ -481,98 +490,123 @@ function CadastroMembroPage() {
                 )}
               </div>
 
-              {/* Card com os Campos */}
+              {/* Form com a sequência exata de campos */}
               <form
                 onSubmit={handleSubmit}
-                className="rounded-2xl border border-white/10 bg-[#0e131b] p-6 sm:p-8 space-y-6 shadow-2xl"
+                className="rounded-2xl border border-white/10 bg-[#0e131b] p-6 sm:p-8 space-y-5 shadow-2xl"
               >
-                {/* 1. Nick & Nome */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
-                      <span>Nick no Jogo *</span>
-                      <span className="text-[10px] text-cyan-400 font-mono">Free Fire</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={nick}
-                      onChange={handleNickChange}
-                      placeholder="Ex: LATAM・Coruja"
-                      className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
-                        errors.nick
-                          ? "border-red-500/60 focus:border-red-500"
-                          : "border-white/10 focus:border-accent/60"
-                      }`}
-                    />
-                    {errors.nick && <p className="text-xs text-red-400 mt-1">{errors.nick}</p>}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-subtle">
-                      Nome Real (Opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={nome}
-                      onChange={(e) => setNome(e.target.value)}
-                      placeholder="Ex: Lucas Silva"
-                      className="w-full rounded-xl border border-white/10 bg-[#121821] px-4 py-2.5 text-sm text-foreground placeholder:text-subtle/50 transition-colors focus:border-accent/60 focus:outline-none"
-                    />
-                  </div>
+                {/* 1. *Nick:* */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
+                    <span className="text-silver font-bold">*Nick:*</span>
+                    <span className="text-[10px] text-cyan-400 font-mono">Free Fire</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={nick}
+                    onChange={handleNickChange}
+                    placeholder="Ex: LATAM・Coruja"
+                    className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
+                      errors.nick
+                        ? "border-red-500/60 focus:border-red-500"
+                        : "border-white/10 focus:border-cyan-400"
+                    }`}
+                  />
+                  {errors.nick && <p className="text-xs text-red-400 mt-1">{errors.nick}</p>}
                 </div>
 
-                {/* 2. ID da Conta & WhatsApp */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
-                      <span>ID da Conta (UID) *</span>
-                      <span className="text-[10px] text-subtle font-mono">7 a 12 números</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={idConta}
-                      onChange={handleIdChange}
-                      placeholder="Ex: 123456789"
-                      maxLength={14}
-                      className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
-                        errors.idConta
-                          ? "border-red-500/60 focus:border-red-500"
-                          : "border-white/10 focus:border-accent/60"
-                      }`}
-                    />
-                    {errors.idConta && (
-                      <p className="text-xs text-red-400 mt-1">{errors.idConta}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
-                      <span>WhatsApp *</span>
-                      <span className="text-[10px] text-emerald-400 font-mono">Contato Staff</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={whatsapp}
-                      onChange={handleWhatsappChange}
-                      placeholder="(11) 99999-9999"
-                      maxLength={16}
-                      className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
-                        errors.whatsapp
-                          ? "border-red-500/60 focus:border-red-500"
-                          : "border-white/10 focus:border-accent/60"
-                      }`}
-                    />
-                    {errors.whatsapp && (
-                      <p className="text-xs text-red-400 mt-1">{errors.whatsapp}</p>
-                    )}
-                  </div>
+                {/* 2. *Nome:* */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-subtle">
+                    <span className="text-silver font-bold">*Nome:*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={nome}
+                    onChange={(e) => {
+                      setNome(e.target.value);
+                      if (errors.nome) setErrors((prev) => ({ ...prev, nome: "" }));
+                    }}
+                    placeholder="Ex: Lucas Silva"
+                    className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
+                      errors.nome
+                        ? "border-red-500/60 focus:border-red-500"
+                        : "border-white/10 focus:border-cyan-400"
+                    }`}
+                  />
+                  {errors.nome && <p className="text-xs text-red-400 mt-1">{errors.nome}</p>}
                 </div>
 
-                {/* 3. Função no Jogo (Botões Táteis Gamer) */}
+                {/* 3. idade */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
+                    <span className="text-silver font-bold">idade</span>
+                    <span className="text-[10px] text-subtle font-mono">Anos</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={idade}
+                    onChange={handleIdadeChange}
+                    placeholder="Ex: 18"
+                    maxLength={2}
+                    className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
+                      errors.idade
+                        ? "border-red-500/60 focus:border-red-500"
+                        : "border-white/10 focus:border-cyan-400"
+                    }`}
+                  />
+                  {errors.idade && <p className="text-xs text-red-400 mt-1">{errors.idade}</p>}
+                </div>
+
+                {/* 4. *ID da Conta:* */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
+                    <span className="text-silver font-bold">*ID da Conta:*</span>
+                    <span className="text-[10px] text-subtle font-mono">UID Free Fire</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={idConta}
+                    onChange={handleIdChange}
+                    placeholder="Ex: 123456789"
+                    maxLength={14}
+                    className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
+                      errors.idConta
+                        ? "border-red-500/60 focus:border-red-500"
+                        : "border-white/10 focus:border-cyan-400"
+                    }`}
+                  />
+                  {errors.idConta && <p className="text-xs text-red-400 mt-1">{errors.idConta}</p>}
+                </div>
+
+                {/* 5. *WhatsApp:* */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
+                    <span className="text-silver font-bold">*WhatsApp:*</span>
+                    <span className="text-[10px] text-emerald-400 font-mono">Contato</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={whatsapp}
+                    onChange={handleWhatsappChange}
+                    placeholder="(11) 99999-9999"
+                    maxLength={16}
+                    className={`w-full rounded-xl border bg-[#121821] px-4 py-2.5 text-sm font-mono text-foreground placeholder:text-subtle/50 transition-colors focus:outline-none ${
+                      errors.whatsapp
+                        ? "border-red-500/60 focus:border-red-500"
+                        : "border-white/10 focus:border-cyan-400"
+                    }`}
+                  />
+                  {errors.whatsapp && (
+                    <p className="text-xs text-red-400 mt-1">{errors.whatsapp}</p>
+                  )}
+                </div>
+
+                {/* 6. *Função:* */}
                 <div className="space-y-2 pt-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
-                    <span>Sua Função Principal *</span>
-                    <span className="text-[10px] text-cyan-400">Estilo de Jogo</span>
+                    <span className="text-silver font-bold">*Função:*</span>
+                    <span className="text-[10px] text-cyan-400">Papel Tático</span>
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {FUNCOES.map((f) => {
@@ -587,7 +621,7 @@ function CadastroMembroPage() {
                           }}
                           className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer ${
                             isSelected
-                              ? "bg-accent/20 border-accent/60 text-silver shadow-[0_0_12px_rgba(0,180,255,0.25)]"
+                              ? "bg-cyan-500/20 border-cyan-400/80 text-silver shadow-[0_0_12px_rgba(0,180,255,0.25)]"
                               : "bg-[#121821] border-white/10 text-subtle hover:border-white/20 hover:text-silver"
                           }`}
                         >
@@ -596,7 +630,7 @@ function CadastroMembroPage() {
                             <span
                               className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-mono ${
                                 isSelected
-                                  ? "bg-accent text-neutral-950 font-bold"
+                                  ? "bg-cyan-400 text-neutral-950 font-bold"
                                   : "bg-white/5 text-subtle"
                               }`}
                             >
@@ -612,10 +646,10 @@ function CadastroMembroPage() {
                   </div>
                 </div>
 
-                {/* 4. Patente Atual (Botões Táteis) */}
+                {/* 7. *Patente:* */}
                 <div className="space-y-2 pt-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
-                    <span>Patente Atual *</span>
+                    <span className="text-silver font-bold">*Patente:*</span>
                     <span className="text-[10px] text-amber-400">Ranqueada</span>
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -656,17 +690,17 @@ function CadastroMembroPage() {
                   </div>
                 </div>
 
-                {/* 5. Line (se houver lines cadastradas na guilda) */}
+                {/* Line opcional se houver */}
                 {lines.length > 0 && (
                   <div className="space-y-1.5 pt-1">
                     <label className="text-xs font-semibold uppercase tracking-wider text-subtle flex items-center justify-between">
-                      <span>Line-up Pretendida (Opcional)</span>
+                      <span>Line-up (Opcional)</span>
                       <span className="text-[10px] text-subtle">Competitivo</span>
                     </label>
                     <select
                       value={lineId}
                       onChange={(e) => setLineId(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-[#121821] px-4 py-2.5 text-sm text-foreground focus:border-accent/60 focus:outline-none"
+                      className="w-full rounded-xl border border-white/10 bg-[#121821] px-4 py-2.5 text-sm text-foreground focus:border-cyan-400 focus:outline-none"
                     >
                       <option value="">Nenhuma / Membro Geral (Sem Line)</option>
                       {lines.map((l) => (
@@ -678,7 +712,7 @@ function CadastroMembroPage() {
                   </div>
                 )}
 
-                {/* 6. Observação / Recado */}
+                {/* Observação Opcional */}
                 <div className="space-y-1.5 pt-1">
                   <label className="text-xs font-semibold uppercase tracking-wider text-subtle">
                     Observação ou Recado para a Liderança (Opcional)
@@ -687,27 +721,27 @@ function CadastroMembroPage() {
                     rows={2}
                     value={nota}
                     onChange={(e) => setNota(e.target.value)}
-                    placeholder="Ex: Jogo no mobile, disponível à noite após às 19h..."
-                    className="w-full rounded-xl border border-white/10 bg-[#121821] px-4 py-2.5 text-sm text-foreground placeholder:text-subtle/50 transition-colors focus:border-accent/60 focus:outline-none resize-none"
+                    placeholder="Algum recado para a staff..."
+                    className="w-full rounded-xl border border-white/10 bg-[#121821] px-4 py-2.5 text-sm text-foreground placeholder:text-subtle/50 transition-colors focus:border-cyan-400 focus:outline-none resize-none"
                   />
                 </div>
 
                 {/* Botão de Envio */}
-                <div className="pt-3">
+                <div className="pt-2">
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full py-3.5 text-sm font-semibold uppercase tracking-wider bg-accent hover:bg-accent-hover text-accent-foreground rounded-xl cursor-pointer shadow-[0_0_20px_rgba(0,180,255,0.35)] transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3.5 text-sm font-semibold uppercase tracking-wider bg-cyan-500 hover:bg-cyan-400 text-neutral-950 rounded-xl cursor-pointer shadow-[0_0_20px_rgba(0,180,255,0.35)] transition-all flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? (
                       <>
                         <div className="size-4 rounded-full border-2 border-neutral-950 border-t-transparent animate-spin" />
-                        <span>Oficializando Cadastro...</span>
+                        <span>Enviando para a Tabela de Membros...</span>
                       </>
                     ) : (
                       <>
                         <Zap size={16} />
-                        <span>Concluir e Entrar no Roster Oficial</span>
+                        <span>Finalizar Cadastro e Entrar no Roster</span>
                       </>
                     )}
                   </Button>
