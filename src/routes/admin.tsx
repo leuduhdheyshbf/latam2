@@ -12,6 +12,7 @@ import {
   EyeOff,
   FileText,
   KeyRound,
+  Link2,
   Lock,
   LogOut,
   MessageCircle,
@@ -74,7 +75,7 @@ import {
   upsertWarningSupabase,
   deleteWarningSupabase,
 } from "@/lib/supabase";
-import { MembrosView, MemberModal, PasteMemberModal } from "@/components/admin-members";
+import { MembrosView, MemberModal, PasteMemberModal, LinkMemberModal } from "@/components/admin-members";
 import { LinesView, AddLineModal, PasteLineModal } from "@/components/admin-lines";
 import {
   AdvertenciasView,
@@ -1138,6 +1139,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
   const [members, setMembers] = useState<GuildMember[]>(() => loadMembers());
   const [lines, setLines] = useState<GuildLine[]>(() => loadLines());
   const [warnings, setWarnings] = useState<GuildWarning[]>(() => loadWarnings());
+  const [showLinkMemberModal, setShowLinkMemberModal] = useState(false);
   const [showAddWarningModal, setShowAddWarningModal] = useState(false);
   const [initialWarnNick, setInitialWarnNick] = useState<string | undefined>(undefined);
   const [warningToRevoke, setWarningToRevoke] = useState<GuildWarning | null>(null);
@@ -1773,6 +1775,20 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
           {/* Right actions */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Botão Global de Gerar Link de Membro */}
+            <button
+              onClick={() => {
+                playClickSound();
+                setShowLinkMemberModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/60 bg-cyan-500/15 hover:bg-cyan-500/25 px-3 py-1.5 text-xs font-bold text-cyan-300 shadow-[0_0_15px_rgba(0,180,255,0.25)] transition-all cursor-pointer"
+              title="Gerar link para membros preencherem seus dados"
+            >
+              <Link2 size={14} className="text-cyan-400" />
+              <span className="hidden md:inline">Gerar Link de Membro</span>
+              <span className="md:hidden">Link Membros</span>
+            </button>
+
             {/* Sound toggle */}
             <button
               onClick={() => {
@@ -1821,7 +1837,18 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 </h1>
               </div>
 
-              <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    playClickSound();
+                    setShowLinkMemberModal(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/40 bg-[#121821] hover:bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-400 transition-all cursor-pointer shadow-sm"
+                >
+                  <Link2 size={13} />
+                  <span>Link p/ Membros</span>
+                </button>
+
                 {isSupabaseConfigured ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400">
                     <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
@@ -2100,6 +2127,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             key="add-modal"
             onClose={() => setShowAddModal(false)}
             onAdd={addCandidate}
+          />
+        )}
+        {showLinkMemberModal && (
+          <LinkMemberModal
+            key="link-member-modal"
+            onClose={() => setShowLinkMemberModal(false)}
+            lines={lines}
           />
         )}
         {showPasteMemberModal && (
