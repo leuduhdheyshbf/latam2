@@ -51,6 +51,37 @@ import {
 } from "@/lib/sound";
 
 export const Route = createFileRoute("/cadastro-membro")({
+  head: () => ({
+    meta: [
+      { title: "LATAM 友 · Formulário de Membro Oficial" },
+      {
+        name: "description",
+        content:
+          "Formulário de cadastro oficial de membros da guilda LATAM 友. Preencha seus dados para entrar no Roster.",
+      },
+      { property: "og:title", content: "LATAM 友 · Formulário de Membro Oficial" },
+      {
+        property: "og:description",
+        content:
+          "Formulário de cadastro oficial de membros da guilda LATAM 友. Preencha seus dados para entrar no Roster.",
+      },
+      { property: "og:image", content: "https://latam2.nyxaria.workers.dev/latam-preview.jpg" },
+      { property: "og:image:secure_url", content: "https://latam2.nyxaria.workers.dev/latam-preview.jpg" },
+      { property: "og:image:type", content: "image/jpeg" },
+      { property: "og:image:width", content: "600" },
+      { property: "og:image:height", content: "600" },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://latam2.nyxaria.workers.dev/cadastro-membro" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "LATAM 友 · Formulário de Membro Oficial" },
+      {
+        name: "twitter:description",
+        content:
+          "Formulário de cadastro oficial de membros da guilda LATAM 友. Preencha seus dados para entrar no Roster.",
+      },
+      { name: "twitter:image", content: "https://latam2.nyxaria.workers.dev/latam-preview.jpg" },
+    ],
+  }),
   component: CadastroMembroPage,
 });
 

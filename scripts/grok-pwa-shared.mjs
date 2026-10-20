@@ -268,7 +268,8 @@ function detectCustomOgCard(cwd = process.cwd(), site = {}) {
 /** Snapshot for Vite/Nitro to bake into the server bundle (Vercel has no workspace FS). */
 export function snapshotOgIdentity(cwd = process.cwd()) {
   const site = { ...readOgSite(cwd) };
-  const disk = ogCardPublicPath(cwd);
+  const customImg = site.image && existsSync(join(cwd, "public", String(site.image).replace(/^\//, ""))) ? site.image : "";
+  const disk = customImg || ogCardPublicPath(cwd);
   if (disk) {
     site.card = "custom";
     site.image = disk;
@@ -342,16 +343,21 @@ export function grokOgHeadTags({
 } = {}) {
   const title = resolveOgTitle(site, appName, host, documentTitle);
   const publicHost = resolvePublicHost(host);
-  const tags = [
-    `<meta name="twitter:card" content="summary_large_image">`,
-    `<meta property="og:title" content="${escapeHtml(title)}">`,
-  ];
   const description = String(site.description ?? "").trim();
+  const tags = [
+    `<meta name="twitter:card" content="summary">`,
+    `<meta property="og:title" content="${escapeHtml(title)}">`,
+    `<meta property="og:site_name" content="${escapeHtml(title)}">`,
+  ];
   if (description) {
     tags.push(`<meta property="og:description" content="${escapeHtml(description)}">`);
+    tags.push(`<meta name="twitter:description" content="${escapeHtml(description)}">`);
   }
+  tags.push(`<meta name="twitter:title" content="${escapeHtml(title)}">`);
   if (String(site.type ?? "").toLowerCase() === "x:game") {
     tags.push(`<meta property="og:type" content="x:game">`);
+  } else {
+    tags.push(`<meta property="og:type" content="website">`);
   }
   if (publicHost) {
     const asset = resolveOgCardAsset(site, cwd);
@@ -362,8 +368,12 @@ export function grokOgHeadTags({
     const color = !custom ? placeholderCardColor(site) : "";
     if (color) image += `&color=${encodeURIComponent(color)}`;
     tags.push(`<meta property="og:image" content="${escapeHtml(image)}">`);
-    tags.push(`<meta property="og:image:width" content="1200">`);
-    tags.push(`<meta property="og:image:height" content="630">`);
+    tags.push(`<meta property="og:image:secure_url" content="${escapeHtml(image)}">`);
+    tags.push(`<meta property="og:image:type" content="image/jpeg">`);
+    tags.push(`<meta property="og:image:width" content="600">`);
+    tags.push(`<meta property="og:image:height" content="600">`);
+    tags.push(`<meta property="og:url" content="https://${publicHost}">`);
+    tags.push(`<meta name="twitter:image" content="${escapeHtml(image)}">`);
     const banner = String(site.banner ?? "").trim();
     if (banner) {
       const bannerUrl = `https://${publicHost}${banner.startsWith("/") ? banner : `/${banner}`}`;

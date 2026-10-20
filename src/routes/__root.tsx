@@ -17,6 +17,27 @@ export const Route = createRootRoute({
         content:
           "Formulário de recrutamento da guilda LATAM 友. Recrutamento aberto para Free Fire.",
       },
+      { property: "og:title", content: "LATAM 友" },
+      {
+        property: "og:description",
+        content:
+          "Formulário de recrutamento da guilda LATAM 友. Recrutamento aberto para Free Fire.",
+      },
+      { property: "og:image", content: "https://latam2.nyxaria.workers.dev/latam-preview.jpg" },
+      { property: "og:image:secure_url", content: "https://latam2.nyxaria.workers.dev/latam-preview.jpg" },
+      { property: "og:image:type", content: "image/jpeg" },
+      { property: "og:image:width", content: "600" },
+      { property: "og:image:height", content: "600" },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://latam2.nyxaria.workers.dev" },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "LATAM 友" },
+      {
+        name: "twitter:description",
+        content:
+          "Formulário de recrutamento da guilda LATAM 友. Recrutamento aberto para Free Fire.",
+      },
+      { name: "twitter:image", content: "https://latam2.nyxaria.workers.dev/latam-preview.jpg" },
       { name: "theme-color", content: "#07090e" },
     ],
     links: [
