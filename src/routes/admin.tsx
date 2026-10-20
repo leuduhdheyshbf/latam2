@@ -1475,6 +1475,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         id: `mem-${Date.now()}`,
         nick: c.nick,
         nome: c.nome || "",
+        idade: c.idade || "",
         idConta: c.idConta,
         whatsapp: c.whatsapp,
         cargo: "titular",

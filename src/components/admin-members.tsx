@@ -92,6 +92,7 @@ export function MembrosView({
         return (
           m.nick.toLowerCase().includes(q) ||
           m.nome.toLowerCase().includes(q) ||
+          (m.idade && m.idade.includes(q)) ||
           m.idConta.includes(q)
         );
       }
@@ -341,7 +342,14 @@ export function MembrosView({
                         <h4 className="font-display text-xl leading-none text-silver truncate max-w-[170px]">
                           {m.nick}
                         </h4>
-                        <p className="text-xs text-subtle mt-0.5">{m.nome}</p>
+                        <p className="text-xs text-subtle mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <span>{m.nome}</span>
+                          {m.idade ? (
+                            <span className="text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 px-1.5 py-0.2 rounded">
+                              {m.idade} anos
+                            </span>
+                          ) : null}
+                        </p>
                       </div>
                     </div>
 
@@ -514,6 +522,7 @@ export function MemberModal({
   const [form, setForm] = useState({
     nick: initialData?.nick || "",
     nome: initialData?.nome || "",
+    idade: initialData?.idade || "",
     idConta: initialData?.idConta || "",
     whatsapp: initialData?.whatsapp || "",
     cargo: (initialData?.cargo as GuildCargo) || "titular",
@@ -535,6 +544,7 @@ export function MemberModal({
         ...prev,
         nick: parsed.nick || prev.nick,
         nome: parsed.nome || prev.nome,
+        idade: parsed.idade || prev.idade,
         idConta: parsed.idConta || prev.idConta,
         whatsapp: parsed.whatsapp || prev.whatsapp,
         cargo: parsed.cargo || prev.cargo,
@@ -578,6 +588,7 @@ export function MemberModal({
       id: initialData?.id || `mem-${Date.now()}`,
       nick: form.nick.trim(),
       nome: form.nome.trim() || form.nick.trim(),
+      idade: form.idade.trim() || undefined,
       idConta: form.idConta.trim(),
       whatsapp: form.whatsapp.trim(),
       cargo: form.cargo,
@@ -710,8 +721,8 @@ export function MemberModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-12 gap-3">
+            <div className="col-span-12 sm:col-span-5">
               <div className="flex items-center justify-between mb-1">
                 <label className={labelClass}>Nome Real</label>
                 <button
@@ -730,7 +741,34 @@ export function MemberModal({
                 onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
               />
             </div>
-            <div>
+            <div className="col-span-4 sm:col-span-3">
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelClass}>Idade</label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    pasteSpecificField("idade", (v) => v.replace(/\D/g, "").slice(0, 2))
+                  }
+                  className="text-[10px] text-accent hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                >
+                  <ClipboardPaste size={10} />
+                  Colar
+                </button>
+              </div>
+              <input
+                className={fieldClass}
+                placeholder="Ex: 19"
+                maxLength={2}
+                value={form.idade}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    idade: e.target.value.replace(/\D/g, "").slice(0, 2),
+                  }))
+                }
+              />
+            </div>
+            <div className="col-span-8 sm:col-span-4">
               <div className="flex items-center justify-between mb-1">
                 <label className={labelClass}>WhatsApp</label>
                 <button
@@ -848,6 +886,7 @@ export function parseMemberFicha(raw: string) {
   let nick = "";
   let idConta = "";
   let nome = "";
+  let idade = "";
   let whatsapp = "";
   let cargo: GuildCargo = "titular";
   let funcao = "rush";
@@ -862,6 +901,16 @@ export function parseMemberFicha(raw: string) {
     } else if (lower.startsWith("nome:")) {
       nome = line.split(/:(.+)/)[1]?.trim() || "";
     } else if (
+      lower.startsWith("idade:") ||
+      lower.startsWith("idade") ||
+      lower.startsWith("anos:") ||
+      lower.startsWith("age:")
+    ) {
+      const match =
+        line.split(/[:\-\s]+(.+)/)[1]?.replace(/\D/g, "").slice(0, 2) ||
+        line.replace(/\D/g, "").slice(0, 2);
+      if (match) idade = match;
+    } else if (
       lower.startsWith("whatsapp:") ||
       lower.startsWith("whats:") ||
       lower.startsWith("zap:") ||
@@ -871,7 +920,8 @@ export function parseMemberFicha(raw: string) {
     } else if (
       lower.startsWith("id:") ||
       lower.startsWith("id da conta:") ||
-      lower.startsWith("id free fire:")
+      lower.startsWith("id free fire:") ||
+      lower.startsWith("uid:")
     ) {
       idConta = line.split(/:(.+)/)[1]?.replace(/\D/g, "") || "";
     } else if (lower.startsWith("cargo:")) {
@@ -905,6 +955,12 @@ export function parseMemberFicha(raw: string) {
     const idMatch = clean.match(/\b(\d{7,12})\b/);
     if (idMatch) idConta = idMatch[1];
   }
+  if (!idade) {
+    const ageMatch =
+      clean.match(/(?:idade|anos|age)[:\s\-]+(\d{1,2})/i) ||
+      clean.match(/\b(\d{1,2})\s*(?:anos|yo|yr)\b/i);
+    if (ageMatch) idade = ageMatch[1];
+  }
   if (!whatsapp) {
     const zapMatch = clean.match(/(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?9?\d{4}[-\s]?\d{4}/);
     if (zapMatch) whatsapp = zapMatch[0];
@@ -922,6 +978,7 @@ export function parseMemberFicha(raw: string) {
     nick: nick || "LATAM 友 RECRUTA",
     idConta: idConta || "",
     nome: nome || nick || "",
+    idade: idade || "",
     whatsapp: whatsapp || "",
     cargo,
     funcao,
@@ -981,6 +1038,7 @@ export function PasteMemberModal({
       id: `mem-${Date.now()}`,
       nick: parsed.nick,
       nome: parsed.nome || parsed.nick,
+      idade: parsed.idade || undefined,
       idConta: parsed.idConta,
       whatsapp: parsed.whatsapp,
       cargo: selectedCargo,
@@ -1082,6 +1140,10 @@ export function PasteMemberModal({
                   <span className="font-mono text-accent truncate block">{parsed.idConta || "—"}</span>
                 </div>
                 <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                  <span className="text-subtle block text-[10px] uppercase">Idade</span>
+                  <span className="text-cyan-300 font-semibold truncate block">{parsed.idade ? `${parsed.idade} anos` : "—"}</span>
+                </div>
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
                   <span className="text-subtle block text-[10px] uppercase">WhatsApp</span>
                   <span className="text-silver truncate block">{parsed.whatsapp || "—"}</span>
                 </div>
@@ -1093,7 +1155,7 @@ export function PasteMemberModal({
                   <span className="text-subtle block text-[10px] uppercase">Patente</span>
                   <span className="text-silver capitalize truncate block">{parsed.patente}</span>
                 </div>
-                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5">
+                <div className="rounded-lg bg-black/40 px-2.5 py-1.5 border border-white/5 col-span-2 sm:col-span-3">
                   <span className="text-subtle block text-[10px] uppercase">Nome</span>
                   <span className="text-silver truncate block">{parsed.nome || "—"}</span>
                 </div>
